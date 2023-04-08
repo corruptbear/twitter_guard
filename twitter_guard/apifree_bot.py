@@ -625,7 +625,7 @@ class TwitterBot:
             "TE": "trailers",
         }
 
-    def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None, filtering_rule=None):
+    def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None):
         self._headers = copy.deepcopy(TwitterBot.default_headers)
 
         self._session = requests.Session()
@@ -646,7 +646,7 @@ class TwitterBot:
         else:
             self._white_list = []
 
-        self._filtering_rule = filtering_rule
+        self._filtering_rule = self._config_dict["filtering_rule"]
 
         try:
             self._load_cookies()
@@ -725,7 +725,7 @@ class TwitterBot:
         save_yaml(self._config_dict, self._config_path, "w")
 
     def _load_cursor(self):
-        if len(self._config_dict["latest_cursor"]) > 0:
+        if len(self._config_dict["latest_cursor"].strip()) > 0:
             TwitterBot.notification_all_form["cursor"] = self._config_dict["latest_cursor"]
         print("after loading cursor:", TwitterBot.notification_all_form["cursor"])
 
@@ -794,13 +794,15 @@ class TwitterBot:
                 f"ORACLE TIME!: id {user.user_id:<25} name {user.screen_name:<16} followers_count {user.followers_count:<10} days_since_reg {user.days_since_registration:<5} is {conclusion_str}"
             )
 
-    def get_notifications(self):
+    def check_notifications(self, block=True):
         """
-        Gets the recent notifications from the API.
+        Gets the recent notifications from the endpoint.
 
         Whenever there is new notification, or you perform operations like block/unblock, mute/unmute, you will get new stuff here.
 
         Updates latest_cursor using the top cursor fetched. After the update, if no new thing happens, then you will not get anything here.
+        
+        Block bad users.
 
         """
         url = TwitterBot.urls["notification_all"]
@@ -913,7 +915,6 @@ class TwitterBot:
             print(f"{x[1]['user'].screen_name:<16} {x[1]['event_type']}")
 
         display_msg("check users interacting with me")    
-        self.judge_users({interacting_users[entry_id]['user_id']:interacting_users[entry_id]['user'] for entry_id in interacting_users})
         """
         print("\ntweets VS non_cursor_entries", len(tweets), len(non_cursor_entries))
         print(
@@ -932,6 +933,8 @@ class TwitterBot:
 
                 self.update_local_cursor(cursor.value)
                 # self.update_remote_latest_cursor()  # will cause the badge to disappear
+        if block:
+            self.judge_users({interacting_users[entry_id]['user_id']:interacting_users[entry_id]['user'] for entry_id in interacting_users})
 
     def _cursor_from_entries(self, entries):
         for e in entries[-2:]:
@@ -1241,7 +1244,10 @@ class TwitterBot:
         return tmp_session, tmp_headers
 
     @staticmethod 
-    def user_from_result(result):
+    def _user_from_result(result):
+        """
+        Extract the user profile from the result dictionary.
+        """
         user = result.legacy
             
         if result.__typename=="User":
@@ -1268,6 +1274,9 @@ class TwitterBot:
 
     @staticmethod 
     def user_by_screen_name(screen_name):
+        """
+        Returns the account status and the user profile, given user's screen_name.
+        """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         
         display_msg("get user by screen name")
@@ -1284,12 +1293,15 @@ class TwitterBot:
         if r.status_code == 200:           
             response = r.json()
             response = TwitterJSON(response)
-            return TwitterBot.user_from_result(response.data.user.result)
+            return TwitterBot._user_from_result(response.data.user.result)
         else:
             print(r.status_code, r.text)
         
     @staticmethod
     def user_by_id(user_id):
+        """
+        Returns the account status and the user profile, given user's id.
+        """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         display_msg("get user by rest id")
@@ -1306,14 +1318,14 @@ class TwitterBot:
         if r.status_code == 200:           
             response = r.json()
             response = TwitterJSON(response)
-            return TwitterBot.user_from_result(response.data.user.result)
+            return TwitterBot._user_from_result(response.data.user.result)
         else:
             print(r.status_code, r.text)
 
     @staticmethod
     def status_by_screen_name(screen_name):
         """
-        Probe the status of an account.
+        Probe the status of an account, given user's screen_name.
         """
         values = TwitterBot.user_by_screen_name(screen_name)
         if values:
@@ -1323,7 +1335,7 @@ class TwitterBot:
     @staticmethod
     def status_by_id(uesr_id):
         """
-        Probe the status of an account.
+        Probe the status of an account, given user's id.
         """
         values = TwitterBot.user_by_id(user_id)
         if values:
