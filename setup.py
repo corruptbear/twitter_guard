@@ -25,11 +25,10 @@ setup_args = {
     #                'Programming Language :: Python :: 3.9'],
     'package_dir': {
         'twitter_guard': 'twitter_guard',
-        #'selenium.common': 'selenium/common',
-        #'selenium.webdriver': 'selenium/webdriver',
+        #'twitter_guard.common': 'twitter_guard/common',
     },
     'packages': ['twitter_guard',
-                 #'twitter_guard.',
+                 #'twitter_guard.common',
              ],
     'include_package_data': True,
     'install_requires': [
