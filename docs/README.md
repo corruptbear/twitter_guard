@@ -13,7 +13,7 @@ A Python package for defending against harassment on Twitter.
 
 Install directly from github
 ```
-  python3.9 -m pip install git+https://github.com/wsluo/twitter_guard
+python3.9 -m pip install git+https://github.com/wsluo/twitter_guard
 ```  
 
 ## Configuration
@@ -78,7 +78,7 @@ logic expression describing bad accounts
 - logic operators:  `not` `and` `or`  
 - arithmatic operators: `+` `-` `*` `/`
 - comparison operators:  `>` `<` `>=` `<=` `==` `!=`
-- keywords: `followers_count ` `following_count`  `tweet_count` `days`  
+- keywords: `followers_count ` `following_count`  `tweet_count` `media_count` `favourites_count` `days`  
 
 Example
 ```

@@ -144,7 +144,7 @@ def rule_eval(rule, vars_):
     """
 
     variable = CaselessLiteral("followers_count") | CaselessLiteral("following_count") | CaselessLiteral("tweet_count") \
-    CaselessLiteral("media_count") | CaselessLiteral("default_profile_image") \
+    | CaselessLiteral("media_count") | CaselessLiteral("default_profile_image") \
     | CaselessLiteral("days") | CaselessLiteral("favourites_count") | Word(alphas, exact=1)
     constant = Word(nums) | CaselessLiteral('True') | CaselessLiteral('False')
     operand = constant | variable 
