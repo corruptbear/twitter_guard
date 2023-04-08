@@ -1,3 +1,4 @@
+from os.path import dirname, join, abspath
 from setuptools import setup
 from setuptools.command.install import install
 
@@ -7,6 +8,8 @@ setup_args = {
     'version': "0.0.1",
     'license': 'MIT',
     'description': 'Personal Anti-Harassment Twitter Bot',
+    'long_description': open(join(abspath(dirname(__file__)), "README.md")).read(),
+    'long_description_content_type': 'text/markdown',
     'url': 'https://github.com/wsluo/twitter_guard',
     'project_urls': {
         'Bug Tracker': 'https://github.com/wsluo/twitter_guard/issues',
