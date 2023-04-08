@@ -58,6 +58,8 @@ def oracle(user, filtering_rule):
         "following_count": user.following_count,
         "tweet_count": user.tweet_count,
         "days": user.days_since_registration,
+        "favourites_count": user.favourites_count,
+        "media_count": user.media_count,
     }
 
     try:
