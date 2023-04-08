@@ -10,6 +10,24 @@ import snscrape.modules.twitter as sntwitter
 class _ReportType(Enum):
     PROFILE = "profile"
     TWEET = "tweet"
+    
+class ReportOption:
+    SpammedOption = "SpammedOption"
+    HarassedOrViolenceOption = "HarassedOrViolenceOption"
+    
+    ShownMisleadingInfoOption = "ShownMisleadingInfoOption"
+    UsingMultipleAccountsOption = "UsingMultipleAccountsOption"
+    InsultingOption = "InsultingOption"
+    WishingHarmOption = "WishingHarmOption"
+    
+    GeneralMisinformationPoliticsOption = "GeneralMisinformationPoliticsOption"
+    GeneralMisinformationPoliticsOtherOption = "GeneralMisinformationPoliticsOtherOption"
+    
+    IdentityGenderOption = "IdentityGenderOption"
+    IdentitySexualOrientation = "IdentitySexualOrientation"
+    
+    ReportedsProfileOption = "ReportedsProfileOption"
+    ReportedsTweetsOption = "ReportedsTweetsOption"
 
 def gen_report_flow_id():
     """
@@ -156,29 +174,29 @@ class ReportHandler:
 
     options = {
         "GovBot": {
-            "options": [["SpammedOption"], ["UsingMultipleAccountsOption"]],
-            "context_text": "this account is part of a coordinated campaingn from the chinese government",
+            "options": [[ReportOption.SpammedOption], [ReportOption.UsingMultipleAccountsOption]],
+            "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
         }, 
         
         "PoliticalDisinfo":{
-            "options":[["ShownMisleadingInfoOption"],["GeneralMisinformationPoliticsOption"],["GeneralMisinformationPoliticsOtherOption"]],
-            "context_text": "the image of this tweet is exclusively used by the PRC state-sponsored disinfo campaign 'Spamouflage'",
+            "options":[[ReportOption.ShownMisleadingInfoOption], [ReportOption.GeneralMisinformationPoliticsOption], [ReportOption.GeneralMisinformationPoliticsOtherOption]],
+            "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
             
         },
-
+        #TODO: to be fixed
         "SexualHarassment":{
-            "options": [["HarassedOrViolenceOption"], ["InsultingOption"], ["IdentityGenderOption","IdentitySexualOrientation"]],
+            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], [ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]],
             "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
         },
 
         "WishingHarm":{
-            "options": [["HarassedOrViolenceOption"], ["WishingHarmOption"], [],["ReportedsProfileOption"]],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me death."
+            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.WishingHarmOption], [],[ReportOption.ReportedsProfileOption]],
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
         },
         
         "Insulting":{
-            "options": [["HarassedOrViolenceOption"], ["InsultingOption"], []],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me death."
+            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], []],
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
         }
 
     }

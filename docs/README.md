@@ -1,4 +1,4 @@
-#twitter_guard
+# twitter_guard
 
 
 ## Introduction
@@ -14,5 +14,5 @@ A Python package for defending against harassment on Twitter.
 
 Install directly from github
 ```
-  python3.9 -m pip install git+https://github.com/wsluo/twitter_guards.git
+  python3.9 -m pip install git+https://github.com/wsluo/twitter_guard
 ```  

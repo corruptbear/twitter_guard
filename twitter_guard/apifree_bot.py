@@ -663,7 +663,7 @@ class TwitterBot:
         self.reporter = ReportHandler(self._headers, self._session)
 
     def _set_selenium_cookies(self, cookies):
-        display_msg("setting cookies from selenium")
+        display_msg("setting cookies")
         for x in cookies:
             print(x)
             otherinfo = dict()
@@ -840,7 +840,7 @@ class TwitterBot:
                 #print(dataclasses.asdict(p))
                 logged_users[p.user_id] = p
 
-        display_msg("globalObjects['tweets]")
+        #display_msg("globalObjects['tweets]")
         id_indexed_tweets = {}
         # all related tweets (being liked; being replied to; being quoted; other people's interaction with me)
         if result.globalObjects.tweets:
@@ -871,7 +871,7 @@ class TwitterBot:
         instructions = result.timeline.instructions  # instructions is a list
 
         # print all keys
-        print("instruction keys:", [x.keys() for x in instructions])
+        #print("instruction keys:", [x.keys() for x in instructions])
 
         # get entries
         for instruction in instructions:
@@ -914,7 +914,7 @@ class TwitterBot:
 
         display_msg("check users interacting with me")    
         self.judge_users({interacting_users[entry_id]['user_id']:interacting_users[entry_id]['user'] for entry_id in interacting_users})
-
+        """
         print("\ntweets VS non_cursor_entries", len(tweets), len(non_cursor_entries))
         print(
             "notifications VS non_cursor_notification",
@@ -922,7 +922,7 @@ class TwitterBot:
             len(non_cursor_notification_entries),
         )
         print("number of convos", len(convo))
-
+        """
         display_msg("cursors")
         for entry in cursor_entries:
             cursor = entry.content.operation.cursor
