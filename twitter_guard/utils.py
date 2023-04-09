@@ -15,6 +15,9 @@ def save_yaml(dictionary, filepath, write_mode):
 
 
 def load_yaml(filepath):
+    """
+    Load the yaml file. Returns an empty dictionary if the file cannot be read.
+    """
     # yaml_path = os.path.join(pwd, filepath)
     try:
         with open(filepath, "r") as stream:
@@ -22,7 +25,7 @@ def load_yaml(filepath):
             return dictionary
     except:
         traceback.print_exc()
-        return None
+        return dict()
         
 def sns_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc)
@@ -48,6 +51,7 @@ def numerical_id(user_id):
     
 def plot_utc_timestamps_by_hour(timestamps):
     """
+    Plot the hourly histogram of the timestamps.
     The timestamps are in utc timestamp format.
     """
     SECONDS_PER_HOUR = 3600

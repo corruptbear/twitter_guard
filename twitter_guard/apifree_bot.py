@@ -628,6 +628,9 @@ class TwitterBot:
         }
 
     def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None):
+        """
+        In order to save the list of newly blocked accounts, the block_list_path should be specified, even if you have not created that file.
+        """
         self._headers = copy.deepcopy(TwitterBot.default_headers)
 
         self._session = requests.Session()
@@ -637,16 +640,12 @@ class TwitterBot:
         self._config_dict = load_yaml(config_path)
 
         self._block_list_path = block_list_path
-        if block_list_path:
-            self._block_list = load_yaml(self._block_list_path)
-        else:
-            self._block_list = []
+        
+        self._block_list = load_yaml(self._block_list_path)
 
         self._white_list_path = white_list_path
-        if white_list_path:
-            self._white_list = load_yaml(self._white_list_path)
-        else:
-            self._white_list = []
+
+        self._white_list = load_yaml(self._white_list_path)
 
         self._filtering_rule = self._config_dict["filtering_rule"]
 

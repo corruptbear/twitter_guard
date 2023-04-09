@@ -18,9 +18,10 @@ python3.9 -m pip install git+https://github.com/wsluo/twitter_guard
 
 ## Configuration
 `apifree.yaml`
+In the initial config file,  set `latest_cursor` field as `""`.
 ```yaml
 filtering_rule: your_custom_filtering_rule
-latest_cursor:  
+latest_cursor: "" 
 login:
   email: your_actual_stuff_here
   password: your_actual_stuff_here
