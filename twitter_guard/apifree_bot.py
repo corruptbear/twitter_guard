@@ -1249,8 +1249,11 @@ class TwitterBot:
         """
         Extract the user profile from the result dictionary.
         """
+        if result is None:
+            return "does_not_exist", None
+
         user = result.legacy
-            
+
         if result.__typename=="User":
             p = TwitterUserProfile(
                 int(result.rest_id),
@@ -1305,7 +1308,7 @@ class TwitterBot:
         """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
-        display_msg("get user by rest id")
+        #display_msg("get user by rest id")
 
         url = TwitterBot.urls["user_by_rest_id"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -1334,7 +1337,7 @@ class TwitterBot:
             return status
             
     @staticmethod
-    def status_by_id(uesr_id):
+    def status_by_id(user_id):
         """
         Probe the status of an account, given user's id.
         """

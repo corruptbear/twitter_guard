@@ -14,18 +14,20 @@ class _ReportType(Enum):
 class ReportOption:
     SpammedOption = "SpammedOption"
     HarassedOrViolenceOption = "HarassedOrViolenceOption"
-    
+
     ShownMisleadingInfoOption = "ShownMisleadingInfoOption"
     UsingMultipleAccountsOption = "UsingMultipleAccountsOption"
+    LikeRetweetReplySpamOption = "LikeRetweetReplySpamOption"
+
     InsultingOption = "InsultingOption"
     WishingHarmOption = "WishingHarmOption"
-    
+
     GeneralMisinformationPoliticsOption = "GeneralMisinformationPoliticsOption"
     GeneralMisinformationPoliticsOtherOption = "GeneralMisinformationPoliticsOtherOption"
-    
+
     IdentityGenderOption = "IdentityGenderOption"
     IdentitySexualOrientation = "IdentitySexualOrientation"
-    
+
     ReportedsProfileOption = "ReportedsProfileOption"
     ReportedsTweetsOption = "ReportedsTweetsOption"
 
@@ -173,15 +175,19 @@ class ReportHandler:
     }
 
     options = {
+        "Spam": {
+            "options":[[ReportOption.SpammedOption],[ReportOption.LikeRetweetReplySpamOption]],
+            "context_text": "this account aggressively posts the same spam reply again and again to different users",
+        },
+
         "GovBot": {
             "options": [[ReportOption.SpammedOption], [ReportOption.UsingMultipleAccountsOption]],
             "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
         }, 
-        
+
         "PoliticalDisinfo":{
             "options":[[ReportOption.ShownMisleadingInfoOption], [ReportOption.GeneralMisinformationPoliticsOption], [ReportOption.GeneralMisinformationPoliticsOtherOption]],
             "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
-            
         },
         #TODO: to be fixed
         "SexualHarassment":{
@@ -193,7 +199,7 @@ class ReportHandler:
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.WishingHarmOption], [],[ReportOption.ReportedsProfileOption]],
             "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
         },
-        
+
         "Insulting":{
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], []],
             "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
@@ -451,7 +457,7 @@ class ReportHandler:
         
         self._report(option_name, _ReportType.TWEET, target=target, user_id=user_id, screen_name=screen_name, tweet_id=tweet_id, context_msg=context_msg)
 
-    def _report_generator(self, items, option_name, context_msg=None, by=None):
+    def _report_generator(self, items, option_name, context_msg=None, by=None, skip_same_user=True):
         # report rate too high will make you black_listed
         count = 0
 
@@ -484,7 +490,7 @@ class ReportHandler:
             in_reply_to_user = content["inReplyToUser"]
 
             #skip user already reported
-            if screen_name in abuser_list:
+            if skip_same_user and screen_name in abuser_list:
                 print(f"Skipped: {screen_name:<16} {user_id} user created at:{created_at} posted at:{posted_at}")
                 continue
           
@@ -495,20 +501,20 @@ class ReportHandler:
             #self.report_user(option_name, target=self._target, user_id=user_id, screen_name = screen_name, context_msg=context_msg)
             if by=="tweet":
                 self.report_tweet(option_name, target=self._target, user_id=user_id, screen_name=screen_name, tweet_id=post_id, context_msg=context_msg)
-                sleep(9)
+                sleep(8.5)
             elif by=="user":
                 self.report_user(option_name, target=self._target, user_id=user_id, screen_name=screen_name, context_msg=context_msg)
                 sleep(8)
 
 
-    def report_from_search(self, phrase, option_name, target="Everyone", context_msg=None, by="tweet"):
+    def report_from_search(self, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
         display_msg("report accounts from search term")
         self._target = target
         x = sntwitter.TwitterSearchScraper(phrase)
-        self._report_generator(x, option_name, context_msg=context_msg, by=by)
+        self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
 
 
-    def report_from_hashtag(self, hashtag, option_name, target="Everyone", context_msg=None,by="tweet"):
+    def report_from_hashtag(self, hashtag, option_name, target="Everyone", context_msg=None,by="tweet", skip_same_user = True):
         """
         Report all users tweeting a certain hashtag in the same way.
         
@@ -521,4 +527,4 @@ class ReportHandler:
         display_msg("report accounts from hashtag")
         self._target = target
         x = sntwitter.TwitterHashtagScraper(hashtag)
-        self._report_generator(x, option_name, context_msg=context_msg, by=by)
+        self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)

@@ -189,7 +189,7 @@ class Recorder:
         for x in self._cursor.fetchall():
             print(dict(x))
 
-        #self._cursor.execute("SELECT * from users")
+        #self._cursor.execute("SELECT * from users ORDER BY screen_name")
         #for x in self._cursor.fetchall():
         #    print(dict(x))
 
@@ -200,7 +200,11 @@ class Recorder:
         #for x in self._cursor.fetchall():
         #    print(dict(x))
            
-
+    def show_tweets_by_screen_name(self, screen_name):
+        display_msg("check_tweets")
+        self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at as post_created_at,  posts.source, posts.content FROM (users JOIN posts ON users.user_id = posts.account_id) WHERE users.screen_name=? ORDER BY posts.created_at",(screen_name,))
+        for x in self._cursor.fetchall():
+            print(dict(x))
 
     def check_status(self):
 
@@ -216,13 +220,18 @@ class Recorder:
             print('all posts:',dict(x))
 
         #examine the status of exiting accounts
-        self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE users.suspended=0 ORDER BY posts.created_at")
+        #self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE users.suspended=0 ORDER BY posts.created_at")
+        self._cursor.execute("SELECT users.user_id, users.screen_name, users.created_at as user_created_at, posts.created_at as last_post_created_at, posts.source as initially_recorded_source, users.suspended as account_suspended FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE (((posts.source LIKE '%easestrategy%') OR (posts.source LIKE '%Ruyitie%'))) ORDER BY posts.created_at")
         for user in self._cursor.fetchall():
-            user_id = dict(user)["user_id"]
-            screen_name = dict(user)["screen_name"]
-            last_posted = dict(user)['created_at']
-            status = TwitterBot.status_by_screen_name(screen_name)
-            print(f"{user_id:<20} {screen_name:<16} {last_posted} {status}")
+            user_dict = dict(user)
+            user_id = user_dict["user_id"]
+            screen_name = user_dict["screen_name"]
+            last_posted = user_dict['last_post_created_at']
+            source = user_dict['initially_recorded_source']
+            status = TwitterBot.status_by_id(int(user_id))
+            user_dict["current_account_status"] = status
+            print(f"{user_id:<20} {screen_name:<16} {last_posted} {source} {status}")
+            #print(user_dict)
 
             if status=="suspended":
                 self._cursor.execute("UPDATE users SET suspended=1 WHERE user_id=?",(user_id,))
