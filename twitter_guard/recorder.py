@@ -37,7 +37,7 @@ class Recorder:
 
         create_users_table_sql = """
         CREATE TABLE IF NOT EXISTS users
-        (user_id int PRIMARY KEY, screen_name text, created_at text, following_count integer, followers_count integer, tweet_count integer, favourites_count integer, media_count integer, last_seen_post_id integer, suspended boolean)
+        (user_id int PRIMARY KEY, screen_name text, created_at text, following_count integer, followers_count integer, tweet_count integer, favourites_count integer, media_count integer, last_seen_post_id integer, account_status text DEFAULT 'normal')
         WITHOUT ROWID
         """
 
@@ -50,6 +50,18 @@ class Recorder:
         self._create_table(create_queries_table_sql)
         self._create_table(create_users_table_sql)
         self._create_table(create_posts_table_sql)
+
+        add_users_column_sql = """
+        ALTER TABLE users
+        ADD COLUMN account_status text DEFAULT 'normal'
+        """
+
+        drop_suspended_column_sql = """
+        ALTER TABLE users
+        DROP COLUMN suspended
+        """
+
+        #self._cursor.execute(drop_suspended_column_sql)
 
     def record(self, query):
         """
@@ -138,7 +150,7 @@ class Recorder:
                     favourites_count,
                     media_count,
                     post_id,
-                    False,
+                    "normal",
                 ),
             )
 
@@ -179,7 +191,7 @@ class Recorder:
         
     def show_suspended_users(self):
         #all suspended  
-        self._cursor.execute("SELECT users.screen_name, users.tweet_count, users.created_at as user_created_at, posts.created_at as last_seen_at FROM posts JOIN users ON (posts.post_id = users.last_seen_post_id) WHERE users.suspended=1 ORDER BY posts.created_at")
+        self._cursor.execute("SELECT users.screen_name, users.tweet_count, users.created_at as user_created_at, posts.created_at as last_seen_at FROM posts JOIN users ON (posts.post_id = users.last_seen_post_id) WHERE users.account_status='suspended' ORDER BY posts.created_at")
         for x in self._cursor.fetchall():
             print(dict(x))
         
@@ -189,9 +201,9 @@ class Recorder:
         for x in self._cursor.fetchall():
             print(dict(x))
 
-        #self._cursor.execute("SELECT * from users ORDER BY screen_name")
-        #for x in self._cursor.fetchall():
-        #    print(dict(x))
+        self._cursor.execute("SELECT * from users ORDER BY screen_name")
+        for x in self._cursor.fetchall():
+            print(dict(x))
 
         #self._cursor.execute("SELECT * FROM posts")
         #self._cursor.execute("SELECT * FROM posts WHERE created_at BETWEEN '2023-01-01' AND '2023-03-01'")
@@ -212,27 +224,33 @@ class Recorder:
         self._cursor.execute("SELECT COUNT(*) from users")
         for x in self._cursor.fetchall():
             print('all users:',dict(x))
-        self._cursor.execute("SELECT COUNT(*) from users WHERE users.suspended=1")
+        self._cursor.execute("SELECT COUNT(*) from users WHERE users.account_status='suspended'")
         for x in self._cursor.fetchall():
             print('suspended users:',dict(x))
         self._cursor.execute("SELECT COUNT(*) from posts")
         for x in self._cursor.fetchall():
             print('all posts:',dict(x))
 
+        #self._cursor.execute(
+        #    "UPDATE users SET account_status='suspended' WHERE users.suspended=1"
+        #)
+        #self.conn.commit()
+
         #examine the status of exiting accounts
-        #self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE users.suspended=0 ORDER BY posts.created_at")
-        self._cursor.execute("SELECT users.user_id, users.screen_name, users.created_at as user_created_at, posts.created_at as last_post_created_at, posts.source as initially_recorded_source, users.suspended as account_suspended FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE (((posts.source LIKE '%easestrategy%') OR (posts.source LIKE '%Ruyitie%'))) ORDER BY posts.created_at")
+        #self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE users.account_status!='suspended' ORDER BY posts.created_at")
+        self._cursor.execute("SELECT * FROM users WHERE account_status!='suspended' ORDER BY screen_name")
+        #self._cursor.execute("SELECT users.user_id, users.screen_name, users.created_at as user_created_at, posts.created_at as last_post_created_at, posts.source as initially_recorded_source, users.suspended as account_suspended FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE (((posts.source LIKE '%easestrategy%') OR (posts.source LIKE '%Ruyitie%'))) ORDER BY posts.created_at")
         for user in self._cursor.fetchall():
             user_dict = dict(user)
             user_id = user_dict["user_id"]
             screen_name = user_dict["screen_name"]
-            last_posted = user_dict['last_post_created_at']
-            source = user_dict['initially_recorded_source']
+            #last_posted = user_dict['last_post_created_at']
+            #source = user_dict['initially_recorded_source']
             status = TwitterBot.status_by_id(int(user_id))
             user_dict["current_account_status"] = status
-            print(f"{user_id:<20} {screen_name:<16} {last_posted} {source} {status}")
-            #print(user_dict)
+            #print(f"{user_id:<20} {screen_name:<16} {last_posted} {source} {status}")
+            print(user_dict)
 
-            if status=="suspended":
-                self._cursor.execute("UPDATE users SET suspended=1 WHERE user_id=?",(user_id,))
-            self.conn.commit()
+            if status is not None:
+                self._cursor.execute("UPDATE users SET account_status=? WHERE user_id=?", (status, user_id))
+                self.conn.commit()

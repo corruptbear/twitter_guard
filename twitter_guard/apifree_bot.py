@@ -1266,10 +1266,10 @@ class TwitterBot:
                 favourites_count=user.favourites_count,
                 display_name=user.name,
             )
-            if result.legacy.protected:
-                return "protected", p
             if result.legacy.profile_interstitial_type == "fake_account":
                 return "fake_account",p
+            if result.legacy.protected:
+                return "protected", p
             return "normal", p
 
         if result.__typename=='UserUnavailable':
