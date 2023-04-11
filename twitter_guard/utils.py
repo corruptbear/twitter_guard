@@ -6,8 +6,10 @@ import traceback
 from datetime import datetime, timezone
 import snscrape.modules.twitter as sntwitter
 
+
 def display_msg(msg):
     print(f"\n{msg:.>50}")
+
 
 def save_yaml(dictionary, filepath, write_mode):
     with open(filepath, write_mode) as f:
@@ -26,12 +28,20 @@ def load_yaml(filepath):
     except:
         traceback.print_exc()
         return dict()
-        
+
+
+# the post timestamp and user.created timestamp have inconsistent format
 def sns_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc)
-    
+
+
 def tweet_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%a %b %d %H:%M:%S +0000 %Y").replace(tzinfo=timezone.utc)
+
+
+def tweet_timestamp_from_sns_timestamp(sns_timestamp):
+    return datetime.strptime(sns_timestamp, "%Y-%m-%dT%H:%M:%S%z").strftime("%a %b %d %H:%M:%S +0000 %Y")
+
 
 def id_from_screen_name(screen_name):
     """
@@ -41,37 +51,40 @@ def id_from_screen_name(screen_name):
     userdata = x._get_entity()
     return int(userdata.id)
 
+
 def numerical_id(user_id):
     try:
         int_user_id = int(user_id)
     except:
         int_user_id = id_from_screen_name(user_id)
-        
+
     return int_user_id
-    
+
+
 def plot_utc_timestamps_by_hour(timestamps):
     """
     Plot the hourly histogram of the timestamps.
     The timestamps are in utc timestamp format.
     """
     SECONDS_PER_HOUR = 3600
-    SECONDS_PER_DAY = SECONDS_PER_HOUR*24
-    hours = [x%SECONDS_PER_DAY//SECONDS_PER_HOUR for x in timestamps]
+    SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
+    hours = [x % SECONDS_PER_DAY // SECONDS_PER_HOUR for x in timestamps]
 
     # Create bar plot
-    plt.hist(hours,bins=[x for x in range(25)],density=True)
-    plt.xlim([0,24])
-    plt.xlabel('hour (utc)')
-    plt.title('posting time')
+    plt.hist(hours, bins=[x for x in range(25)], density=True)
+    plt.xlim([0, 24])
+    plt.xlabel("hour (utc)")
+    plt.title("posting time")
     plt.show()
-    
-def plot_utc_timestamps_intervals(timestamps, minimum = None, maximum = None):
+
+
+def plot_utc_timestamps_intervals(timestamps, minimum=None, maximum=None):
     post = np.array(timestamps[1:])
     pre = np.array(timestamps[:-1])
     intervals = pre - post
-    
+
     if minimum is not None and maximum is not None:
-        intervals = [x for x in intervals if x>minimum and x<maximum]
-    
+        intervals = [x for x in intervals if x > minimum and x < maximum]
+
     plt.hist(intervals)
     plt.show()

@@ -30,6 +30,7 @@ import snscrape.modules.twitter as sntwitter
 from collections import abc
 import keyword
 
+
 def display_session_cookies(s):
     display_msg("print cookies")
     for x in s.cookies:
@@ -93,7 +94,7 @@ class TwitterJSON:
             if "__typename" in name:
                 name = "__typename"
             # no ambiguity
-            if name != 'items':
+            if name != "items":
                 return getattr(self.__data, name)
             # we are only in the data, not the built-in method
             else:
@@ -148,7 +149,8 @@ class TwitterUserProfile:
             created_time = datetime.strptime(self.created_at, "%a %b %d %H:%M:%S +0000 %Y").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
             time_diff = current_time - created_time
             self.days_since_registration = time_diff.days
-            
+
+
 @dataclasses.dataclass
 class Tweet:
     tweet_id: int
@@ -156,6 +158,7 @@ class Tweet:
     created_at: str = dataclasses.field(default=None)
     source: str = dataclasses.field(default=None)
     text: str = dataclasses.field(default=None)
+
 
 class TwitterLoginBot:
     def __init__(self, email, password, screenname, phonenumber, cookie_path=None):
@@ -485,8 +488,8 @@ class TwitterBot:
         "followers": "https://twitter.com/i/api/graphql/utPIvA97eaEvxfra_PQz_A/Followers",
         "following": "https://twitter.com/i/api/graphql/AmvGuDw_fxEbJtEXie4OkA/Following",
         "tweets_replies": "https://twitter.com/i/api/graphql/pNl8WjKAvaegIoVH--FuoQ/UserTweetsAndReplies",
-        "user_by_rest_id":'https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId',
-        "user_by_screen_name": 'https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName',
+        "user_by_rest_id": "https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId",
+        "user_by_screen_name": "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName",
     }
 
     jot_form_success = {
@@ -531,46 +534,45 @@ class TwitterBot:
         "cursor": "DAABDAABCgABAAAAABZfed0IAAIAAAABCAADYinMQAgABFMKJicACwACAAAAC0FZWlhveW1SNnNFCAADjyMIvwAA",
         "ext": "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe",
     }
-    
+
     standard_graphql_features = {
-            "responsive_web_twitter_blue_verified_badge_is_enabled": True,
-            "responsive_web_graphql_exclude_directive_enabled": False,
-            "verified_phone_label_enabled": False,
-            "responsive_web_graphql_timeline_navigation_enabled": True,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "tweetypie_unmention_optimization_enabled": True,
-            "vibe_api_enabled": True,
-            "responsive_web_edit_tweet_api_enabled": True,
-            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
-            "view_counts_everywhere_api_enabled": True,
-            "longform_notetweets_consumption_enabled": True,
-            "tweet_awards_web_tipping_enabled": False,
-            "freedom_of_speech_not_reach_fetch_enabled": False,
-            "standardized_nudges_misinfo": True,
-            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": False,
-            "interactive_text_enabled": True,
-            "responsive_web_text_conversations_enabled": False,
-            "longform_notetweets_richtext_consumption_enabled": False,
-            "responsive_web_enhance_cards_enabled": False,
-        }
+        "responsive_web_twitter_blue_verified_badge_is_enabled": True,
+        "responsive_web_graphql_exclude_directive_enabled": False,
+        "verified_phone_label_enabled": False,
+        "responsive_web_graphql_timeline_navigation_enabled": True,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+        "tweetypie_unmention_optimization_enabled": True,
+        "vibe_api_enabled": True,
+        "responsive_web_edit_tweet_api_enabled": True,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+        "view_counts_everywhere_api_enabled": True,
+        "longform_notetweets_consumption_enabled": True,
+        "tweet_awards_web_tipping_enabled": False,
+        "freedom_of_speech_not_reach_fetch_enabled": False,
+        "standardized_nudges_misinfo": True,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": False,
+        "interactive_text_enabled": True,
+        "responsive_web_text_conversations_enabled": False,
+        "longform_notetweets_richtext_consumption_enabled": False,
+        "responsive_web_enhance_cards_enabled": False,
+    }
 
     create_tweet_form = {
         "variables": {
             "tweet_text": "test",
             "dark_request": False,
             "media": {
-              "media_entities": [],
-              "possibly_sensitive": False,
+                "media_entities": [],
+                "possibly_sensitive": False,
             },
             "withDownvotePerspective": False,
             "withReactionsMetadata": False,
             "withReactionsPerspective": False,
             "semantic_annotation_ids": [],
-          }, 
+        },
         "features": standard_graphql_features,
-        "queryId": "VtVTvbMKuYFBF9m1s4L1sw",    
+        "queryId": "VtVTvbMKuYFBF9m1s4L1sw",
     }
-    
 
     following_followers_form = {
         "variables": {
@@ -585,47 +587,47 @@ class TwitterBot:
         },
         "features": standard_graphql_features,
     }
-    
+
     tweet_replies_form = {
-            "variables": {
-                "userId": "1629601029678309376",
-                "count": 100,
-                #"cursor": "HCaAgICU9oDCqS0AAA==",
-                "includePromotedContent": True,
-                "withCommunity": True,
-                "withSuperFollowsUserFields": True,
-                "withDownvotePerspective": False,
-                "withReactionsMetadata": False,
-                "withReactionsPerspective": False,
-                "withSuperFollowsTweetFields": True,
-                "withVoice": True,
-                "withV2Timeline": True,
-            },
-            "features": standard_graphql_features,
-        }
+        "variables": {
+            "userId": "1629601029678309376",
+            "count": 100,
+            # "cursor": "HCaAgICU9oDCqS0AAA==",
+            "includePromotedContent": True,
+            "withCommunity": True,
+            "withSuperFollowsUserFields": True,
+            "withDownvotePerspective": False,
+            "withReactionsMetadata": False,
+            "withReactionsPerspective": False,
+            "withSuperFollowsTweetFields": True,
+            "withVoice": True,
+            "withV2Timeline": True,
+        },
+        "features": standard_graphql_features,
+    }
 
     default_headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0",
-            "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-            "Host": "api.twitter.com",
-            "Referer": "https://twitter.com/",
-            "x-twitter-polling": "true",
-            "x-twitter-auth-type": "OAuth2Session",
-            "x-twitter-client-language": "en",
-            "x-twitter-active-user": "yes",
-            "x-csrf-token": "1fda97d345e0c46c2eb430eee5d916b3a4cb129ae6bb97f54a8bc279bff5b33b26a11ce36075550e911797aae312bb47365aa41ed205717c262310bcfd94746bca374a1c7f45ed0a214a389478d9590b",
-            "Origin": "https://twitter.com",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-site",
-            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-            "Connection": "keep-alive",
-            "TE": "trailers",
-        }
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Host": "api.twitter.com",
+        "Referer": "https://twitter.com/",
+        "x-twitter-polling": "true",
+        "x-twitter-auth-type": "OAuth2Session",
+        "x-twitter-client-language": "en",
+        "x-twitter-active-user": "yes",
+        "x-csrf-token": "1fda97d345e0c46c2eb430eee5d916b3a4cb129ae6bb97f54a8bc279bff5b33b26a11ce36075550e911797aae312bb47365aa41ed205717c262310bcfd94746bca374a1c7f45ed0a214a389478d9590b",
+        "Origin": "https://twitter.com",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site",
+        "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        "Connection": "keep-alive",
+        "TE": "trailers",
+    }
 
     def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None):
         """
@@ -640,7 +642,7 @@ class TwitterBot:
         self._config_dict = load_yaml(config_path)
 
         self._block_list_path = block_list_path
-        
+
         self._block_list = load_yaml(self._block_list_path)
 
         self._white_list_path = white_list_path
@@ -749,7 +751,7 @@ class TwitterBot:
 
     def block_user(self, user_id):
         user_id = numerical_id(user_id)
-            
+
         url = TwitterBot.urls["block"]
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
@@ -760,7 +762,7 @@ class TwitterBot:
 
     def unblock_user(self, user_id):
         user_id = numerical_id(user_id)
-            
+
         url = TwitterBot.urls["unblock"]
         unblock_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unblock_form)
@@ -802,7 +804,7 @@ class TwitterBot:
         Whenever there is new notification, or you perform operations like block/unblock, mute/unmute, you will get new stuff here.
 
         Updates latest_cursor using the top cursor fetched. After the update, if no new thing happens, then you will not get anything here.
-        
+
         Block bad users.
 
         """
@@ -840,19 +842,19 @@ class TwitterBot:
                     favourites_count=user.favourites_count,
                     display_name=user.name,
                 )
-                #print(dataclasses.asdict(p))
+                # print(dataclasses.asdict(p))
                 logged_users[p.user_id] = p
 
-        #display_msg("globalObjects['tweets]")
+        # display_msg("globalObjects['tweets]")
         id_indexed_tweets = {}
         # all related tweets (being liked; being replied to; being quoted; other people's interaction with me)
         if result.globalObjects.tweets:
             tweets = result.globalObjects.tweets
             for tweet in tweets.values():
                 id_indexed_tweets[int(tweet.id)] = tweet
-                #print("convo id:", tweet.conversation_id)
+                # print("convo id:", tweet.conversation_id)
                 convo.add(tweet.conversation_id)
-                #print(tweet.user_id, tweet.created_at, tweet.full_text)
+                # print(tweet.user_id, tweet.created_at, tweet.full_text)
 
         interacting_users = {}
         entryid_notification_users = {}
@@ -860,21 +862,21 @@ class TwitterBot:
         display_msg("globalObjects['notifications']")
         if result.globalObjects.notifications:
             notifications = result.globalObjects.notifications
-            #userid and sortindex available; but not interaction type
+            # userid and sortindex available; but not interaction type
             for notification in notifications.values():
-                #print(notification)
-                #print(notification.message.text)
+                # print(notification)
+                # print(notification.message.text)
                 for e in notification.message.entities:
                     entry_user_id = int(e.ref.user.id)
                     # add the users appearing in notifications (do not include replies)
-                    entryid_notification_users[notification.id]=entry_user_id
+                    entryid_notification_users[notification.id] = entry_user_id
 
         display_msg("timeline")
         print("TIMELINE ID", result.timeline.id)
         instructions = result.timeline.instructions  # instructions is a list
 
         # print all keys
-        #print("instruction keys:", [x.keys() for x in instructions])
+        # print("instruction keys:", [x.keys() for x in instructions])
 
         # get entries
         for instruction in instructions:
@@ -894,12 +896,17 @@ class TwitterBot:
         display_msg("timeline: non_cursor_notification")
         # users_liked_your_tweet/user_liked_multiple_tweets/user_liked_tweets_about_you/generic_login_notification/generic_report_received/users_retweeted_your_tweet ; no userid is included in these entries
         for entry in non_cursor_notification_entries:
-            #print(entry)
-            if entry.content.item.clientEventInfo.element not in ['generic_login_notification','generic_report_received']:
+            # print(entry)
+            if entry.content.item.clientEventInfo.element not in ["generic_login_notification", "generic_report_received"]:
                 entry_id = entry.entryId[13:]
                 entry_user_id = entryid_notification_users[entry_id]
                 print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
-                interacting_users[entry_id] = {'sort_index':entry.sortIndex,'user_id':entry_user_id, 'user':logged_users[entry_user_id], 'event_type':entry.content.item.clientEventInfo.element}
+                interacting_users[entry_id] = {
+                    "sort_index": entry.sortIndex,
+                    "user_id": entry_user_id,
+                    "user": logged_users[entry_user_id],
+                    "event_type": entry.content.item.clientEventInfo.element,
+                }
 
         display_msg("timeline: non_cursor_tweets")
         # user_replied_to_your_tweet/user_quoted_your_tweet
@@ -908,14 +915,19 @@ class TwitterBot:
             entry_user_id = id_indexed_tweets[int(entry.content.item.content.tweet.id)].user_id
             print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
             # add the users replying to me
-            interacting_users[entry_id] = {'sort_index':entry.sortIndex,'user_id':entry_user_id,'user':logged_users[entry_user_id],'event_type':entry.content.item.clientEventInfo.element}
+            interacting_users[entry_id] = {
+                "sort_index": entry.sortIndex,
+                "user_id": entry_user_id,
+                "user": logged_users[entry_user_id],
+                "event_type": entry.content.item.clientEventInfo.element,
+            }
 
         display_msg("all interactions")
-        #sort by time from latest to earliest
-        for x in sorted(interacting_users.items(), key=lambda item: item[1]['sort_index'],reverse=True):
+        # sort by time from latest to earliest
+        for x in sorted(interacting_users.items(), key=lambda item: item[1]["sort_index"], reverse=True):
             print(f"{x[1]['user'].screen_name:<16} {x[1]['event_type']}")
 
-        display_msg("check users interacting with me")    
+        display_msg("check users interacting with me")
         """
         print("\ntweets VS non_cursor_entries", len(tweets), len(non_cursor_entries))
         print(
@@ -935,7 +947,7 @@ class TwitterBot:
                 self.update_local_cursor(cursor.value)
                 # self.update_remote_latest_cursor()  # will cause the badge to disappear
         if block:
-            self.judge_users({interacting_users[entry_id]['user_id']:interacting_users[entry_id]['user'] for entry_id in interacting_users})
+            self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users})
 
     def _cursor_from_entries(self, entries):
         for e in entries[-2:]:
@@ -970,7 +982,7 @@ class TwitterBot:
                 else:
                     # otherwise the typename is UserUnavailable
                     print("cannot get user data", e.entryId)
-                    
+
     def _tweet_type(self, in_reply_to_screen_name, is_quote_status, retweeted):
         if in_reply_to_screen_name is not None:
             if is_quote_status:
@@ -983,8 +995,8 @@ class TwitterBot:
             if retweeted:
                 return "retweeted"
             return "original"
-        
-    def _text_from_entries(self,entries,user_id):
+
+    def _text_from_entries(self, entries, user_id):
         for e in entries:
             content = e.content
 
@@ -993,15 +1005,31 @@ class TwitterBot:
                     result = i.item.itemContent.tweet_results.result
                     if result:
                         if result.__typename == "Tweet":
-                            #other user's post in a conversation is also returned; needs filtering here
-                            if int(result.core.user_results.result.rest_id)==user_id:
-                                tweet_type = self._tweet_type(result.legacy.in_reply_to_screen_name,result.legacy.is_quote_status,result.legacy.retweeted)
-                                tweet = Tweet(result.rest_id, tweet_type = tweet_type, created_at = result.legacy.created_at, source = result.source, text = result.legacy.full_text)
+                            # other user's post in a conversation is also returned; needs filtering here
+                            if int(result.core.user_results.result.rest_id) == user_id:
+                                tweet_type = self._tweet_type(
+                                    result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted
+                                )
+                                tweet = Tweet(
+                                    result.rest_id,
+                                    tweet_type=tweet_type,
+                                    created_at=result.legacy.created_at,
+                                    source=result.source,
+                                    text=result.legacy.full_text,
+                                )
                                 yield tweet
                         if result.__typename == "TweetWithVisibilityResults":
                             try:
-                                tweet_type = self._tweet_type(result.tweet.legacy.in_reply_to_screen_name,result.tweet.legacy.is_quote_status,result.tweet.legacy.retweeted)
-                                tweet = Tweet(result.tweet.rest_id, tweet_type = tweet_type, created_at = result.tweet.legacy.created_at, source = result.tweet.source, text = result.tweet.legacy.full_text)
+                                tweet_type = self._tweet_type(
+                                    result.tweet.legacy.in_reply_to_screen_name, result.tweet.legacy.is_quote_status, result.tweet.legacy.retweeted
+                                )
+                                tweet = Tweet(
+                                    result.tweet.rest_id,
+                                    tweet_type=tweet_type,
+                                    created_at=result.tweet.legacy.created_at,
+                                    source=result.tweet.source,
+                                    text=result.tweet.legacy.full_text,
+                                )
                             except:
                                 traceback.print_exc()
                                 print(result)
@@ -1010,13 +1038,27 @@ class TwitterBot:
                 result = content.itemContent.tweet_results.result
                 if result:
                     if result.__typename == "Tweet":
-                        tweet_type = self._tweet_type(result.legacy.in_reply_to_screen_name,result.legacy.is_quote_status,result.legacy.retweeted)
-                        tweet = Tweet(result.rest_id, tweet_type = tweet_type, created_at = result.legacy.created_at, source = result.source, text = result.legacy.full_text)
+                        tweet_type = self._tweet_type(result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted)
+                        tweet = Tweet(
+                            result.rest_id,
+                            tweet_type=tweet_type,
+                            created_at=result.legacy.created_at,
+                            source=result.source,
+                            text=result.legacy.full_text,
+                        )
                         yield tweet
                     if result.__typename == "TweetWithVisibilityResults":
                         try:
-                            tweet_type = self._tweet_type(result.tweet.legacy.in_reply_to_screen_name,result.tweet.legacy.is_quote_status,result.tweet.legacy.retweeted)
-                            tweet = Tweet(result.tweet.rest_id, tweet_type = tweet_type, created_at = result.tweet.legacy.created_at, source = result.tweet.source, text = result.tweet.legacy.full_text)
+                            tweet_type = self._tweet_type(
+                                result.tweet.legacy.in_reply_to_screen_name, result.tweet.legacy.is_quote_status, result.tweet.legacy.retweeted
+                            )
+                            tweet = Tweet(
+                                result.tweet.rest_id,
+                                tweet_type=tweet_type,
+                                created_at=result.tweet.legacy.created_at,
+                                source=result.tweet.source,
+                                text=result.tweet.legacy.full_text,
+                            )
                         except:
                             traceback.print_exc()
                             print(result)
@@ -1029,10 +1071,10 @@ class TwitterBot:
 
         return headers
 
-    def _navigate_graphql_entries(self, url, headers, form):
+    def _navigate_graphql_entries(self, session, url, headers, form):
         while True:
             encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-            r = self._session.get(url, headers=headers, params=encoded_params)
+            r = session.get(url, headers=headers, params=encoded_params)
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1058,21 +1100,24 @@ class TwitterBot:
             bottom_cursor = self._cursor_from_entries(entries)
             form["variables"]["cursor"] = bottom_cursor
 
+    # TODO: this could be done login free
     def get_tweets_replies(self, user_id):
         """
         Gets the texts from the user's tweets and replies tab.
         """
         user_id = numerical_id(user_id)
 
-        headers = self._json_headers()
+        # headers = self._json_headers()
         url = TwitterBot.urls["tweets_replies"]
+
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(url, headers, form):
-            yield from self._text_from_entries(entries,user_id)
+        for entries in self._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
+            yield from self._text_from_entries(entries, user_id)
 
     def get_following(self, user_id):
         """
@@ -1092,7 +1137,7 @@ class TwitterBot:
         # set userID in form
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(url, headers, form):
+        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
             yield from self._users_from_entries(entries)
 
     def get_followers(self, user_id):
@@ -1113,7 +1158,7 @@ class TwitterBot:
         # set userID in form
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(url, headers, form):
+        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
             yield from self._users_from_entries(entries)
 
     def get_retweeters(self, tweet_url):
@@ -1136,11 +1181,11 @@ class TwitterBot:
         # set tweetId in form
         form["variables"]["tweetId"] = tweet_url.split("/")[-1]
 
-        for entries in self._navigate_graphql_entries(url, headers, form):
+        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
             yield from self._users_from_entries(entries)
-            
+
     def _tweet_creation_form(self, text):
-        form = copy.deepcopy(TwitterBot.create_tweet_form)      
+        form = copy.deepcopy(TwitterBot.create_tweet_form)
         form["variables"]["tweet_text"] = text
 
         form["features"]["view_counts_everywhere_api_enabled"] = False
@@ -1152,11 +1197,8 @@ class TwitterBot:
 
     def _reply_creation_form(self, tweet_id, text):
         form = self._tweet_creation_form(text)
-        form["variables"]["reply"] = {
-          "in_reply_to_tweet_id": str(tweet_id),
-          "exclude_reply_user_ids": []
-        }
-        form["variables"]["batch_compose"]= "BatchSubsequent"
+        form["variables"]["reply"] = {"in_reply_to_tweet_id": str(tweet_id), "exclude_reply_user_ids": []}
+        form["variables"]["batch_compose"] = "BatchSubsequent"
 
         return form
 
@@ -1173,18 +1215,17 @@ class TwitterBot:
         headers["Referer"] = "https://twitter.com/compose/tweet"
         return headers
 
-
     def create_tweet(self, text):
         display_msg("tweet")
-  
+
         headers = self._tweet_creation_headers()
         form = self._tweet_creation_form(text)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
-        #data-raw is used; no url-encoding
+        # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        print(r.status_code,r.text)
+        print(r.status_code, r.text)
 
         response = r.json()
         response = TwitterJSON(response)
@@ -1195,12 +1236,12 @@ class TwitterBot:
     def reply_to_tweet(self, tweet_id, text):
         display_msg("reply")
 
-        headers = self._reply_creation_headers()        
+        headers = self._reply_creation_headers()
         form = self._reply_creation_form(tweet_id, text)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
-        #data-raw is used; no url-encoding
+        # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
         print(r.status_code)
 
@@ -1210,7 +1251,7 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def create_thread(self, texts):        
+    def create_thread(self, texts):
         initial_text = texts[0]
         rest_texts = texts[1:]
 
@@ -1220,7 +1261,7 @@ class TwitterBot:
         for text in rest_texts:
             tweet_id = self.reply_to_tweet(tweet_id, text)
             sleep(random.randint(10, 30))
-    
+
     @staticmethod
     def tmp_session_headers():
         tmp_session = requests.Session()
@@ -1240,11 +1281,11 @@ class TwitterBot:
         tmp_headers["x-csrf-token"] = tmp_session.cookies.get("ct0")
 
         tmp_headers["Content-Type"] = "application/json"
-        tmp_headers["Host"] = "twitter.com"  
-        
+        tmp_headers["Host"] = "twitter.com"
+
         return tmp_session, tmp_headers
 
-    @staticmethod 
+    @staticmethod
     def _user_from_result(result):
         """
         Extract the user profile from the result dictionary.
@@ -1254,7 +1295,7 @@ class TwitterBot:
 
         user = result.legacy
 
-        if result.__typename=="User":
+        if result.__typename == "User":
             p = TwitterUserProfile(
                 int(result.rest_id),
                 user.screen_name,
@@ -1267,40 +1308,40 @@ class TwitterBot:
                 display_name=user.name,
             )
             if result.legacy.profile_interstitial_type == "fake_account":
-                return "fake_account",p
+                return "fake_account", p
             if result.legacy.protected:
                 return "protected", p
             return "normal", p
 
-        if result.__typename=='UserUnavailable':
-            if 'suspends' in result.unavailable_message.text:
-                return "suspended", None      
+        if result.__typename == "UserUnavailable":
+            if "suspends" in result.unavailable_message.text:
+                return "suspended", None
 
-    @staticmethod 
+    @staticmethod
     def user_by_screen_name(screen_name):
         """
         Returns the account status and the user profile, given user's screen_name.
         """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-        
+
         display_msg("get user by screen name")
-        
+
         url = TwitterBot.urls["user_by_screen_name"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
-        form["variables"] = {"screen_name":screen_name,"withSafetyModeUserFields":True}
+        form["variables"] = {"screen_name": screen_name, "withSafetyModeUserFields": True}
         form["features"]["blue_business_profile_image_shape_enabled"] = False
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
         r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        
-        if r.status_code == 200:           
+
+        if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
             return TwitterBot._user_from_result(response.data.user.result)
         else:
             print(r.status_code, r.text)
-        
+
     @staticmethod
     def user_by_id(user_id):
         """
@@ -1308,18 +1349,18 @@ class TwitterBot:
         """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
-        #display_msg("get user by rest id")
+        display_msg("get user by rest id")
 
         url = TwitterBot.urls["user_by_rest_id"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
-        form["variables"] = {"userId":str(user_id),"withSafetyModeUserFields":True}
+        form["variables"] = {"userId": str(user_id), "withSafetyModeUserFields": True}
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-        
+
         r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
 
-        if r.status_code == 200:           
+        if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
             return TwitterBot._user_from_result(response.data.user.result)
@@ -1335,7 +1376,7 @@ class TwitterBot:
         if values:
             status, user_profile = values
             return status
-            
+
     @staticmethod
     def status_by_id(user_id):
         """
