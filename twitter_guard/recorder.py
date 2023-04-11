@@ -243,7 +243,7 @@ class Recorder:
         # examine the status of exiting accounts
         # self._cursor.execute("SELECT users.user_id, users.screen_name, posts.created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE users.account_status!='suspended' ORDER BY posts.created_at")
         self._cursor.execute(
-            "SELECT users.user_id, users.screen_name, posts.created_at as last_post_created_at FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id)  WHERE (account_status!='suspended' and account_status!='does_not_exist') AND (posts.created_at>='2023-01-01') ORDER BY posts.created_at"
+            "SELECT users.user_id, users.screen_name, posts.created_at as last_post_created_at, account_status FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id)  WHERE (account_status!='suspended' and account_status!='does_not_exist') AND (posts.created_at>='2023-01-01') ORDER BY posts.created_at"
         )
         # self._cursor.execute("SELECT users.user_id, users.screen_name, users.created_at as user_created_at, posts.created_at as last_post_created_at, posts.source as initially_recorded_source, users.suspended as account_suspended FROM (users JOIN posts ON users.last_seen_post_id = posts.post_id) WHERE (((posts.source LIKE '%easestrategy%') OR (posts.source LIKE '%Ruyitie%'))) ORDER BY posts.created_at")
         for user in self._cursor.fetchall():
@@ -252,11 +252,11 @@ class Recorder:
             screen_name = user_dict["screen_name"]
             last_posted = user_dict["last_post_created_at"]
             # source = user_dict['initially_recorded_source']
-            status = TwitterBot.status_by_id(int(user_id))
-            user_dict["current_account_status"] = status
-            print(f"{user_id:<20} {screen_name:<16} {last_posted} {status}")
+            old_status = user_dict["account_status"]
+            new_status = TwitterBot.status_by_id(int(user_id))
+            print(f"{user_id:<20} {screen_name:<16} {last_posted} {old_status} -> {new_status}")
             # print(user_dict)
 
-            if status is not None:
-                self._cursor.execute("UPDATE users SET account_status=? WHERE user_id=?", (status, user_id))
+            if new_status is not None:
+                self._cursor.execute("UPDATE users SET account_status=? WHERE user_id=?", (new_status, user_id))
                 self.conn.commit()

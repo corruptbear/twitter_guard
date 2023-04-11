@@ -12,13 +12,17 @@ A Python package for defending against harassment on Twitter.
 ## Installation
 
 Install directly from github
-```
-python3.9 -m pip install git+https://github.com/wsluo/twitter_guard
+```bash
+#if you are using python3.9, for example
+python3.9 -m pip install --user git+https://github.com/wsluo/twitter_guard
 ```  
 
 ## Configuration
+To use the package, create `apifree.yaml`, `white_list.yaml` and `block_list.yaml` in the folder where your own script resides.
+
 `apifree.yaml`
-In the initial config file,  set `latest_cursor` field as `""`.
+
+Before first time use,  set `latest_cursor` field as `""`.
 ```yaml
 filtering_rule: your_custom_filtering_rule
 latest_cursor: "" 
@@ -48,14 +52,14 @@ id2_of_your_enemy: name2_of_your_enemy
 import os
 from twitter_guard.apifree_bot import TwitterBot
 
+#specify the paths of configs and cookies
 pwd = os.path.dirname(os.path.realpath(__file__))
-
 COOKIE_PATH = os.path.join(pwd, "sl_cookies.pkl")
 CONFIG_PATH = os.path.join(pwd, "apifree.yaml")
-
 WHITE_LIST_PATH = os.path.join(pwd, "white_list.yaml")
 BLOCK_LIST_PATH = os.path.join(pwd, "block_list.yaml")
 
+#create the bot
 bot = TwitterBot(
     cookie_path=COOKIE_PATH,
     config_path=CONFIG_PATH,
