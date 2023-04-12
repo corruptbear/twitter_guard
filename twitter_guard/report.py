@@ -459,7 +459,7 @@ class ReportHandler:
 
     def _report_generator(self, items, option_name, context_msg=None, by=None, skip_same_user=True):
         # report rate too high will make you black_listed
-        count = 0
+        count = 1
 
         # only report once
         abuser_list = {}

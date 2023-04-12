@@ -896,8 +896,7 @@ class TwitterBot:
         display_msg("timeline: non_cursor_notification")
         # users_liked_your_tweet/user_liked_multiple_tweets/user_liked_tweets_about_you/generic_login_notification/generic_report_received/users_retweeted_your_tweet ; no userid is included in these entries
         for entry in non_cursor_notification_entries:
-            # print(entry)
-            if entry.content.item.clientEventInfo.element not in ["generic_login_notification", "generic_report_received"]:
+            if entry.content.item.clientEventInfo.element not in ["generic_login_notification", "generic_report_received", "generic_abuse_report_actioned_with_count"]:
                 entry_id = entry.entryId[13:]
                 entry_user_id = entryid_notification_users[entry_id]
                 print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
@@ -996,6 +995,20 @@ class TwitterBot:
                 return "retweeted"
             return "original"
 
+    def _tweet_from_result(self,result):
+        tweet_type = self._tweet_type(
+            result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted
+        )
+        tweet = Tweet(
+            result.rest_id,
+            tweet_type=tweet_type,
+            created_at=result.legacy.created_at,
+            source=result.source,
+            text=result.legacy.full_text,
+        )
+        if "advertiser-interface" not in tweet.source:
+            yield tweet
+
     def _text_from_entries(self, entries, user_id):
         for e in entries:
             content = e.content
@@ -1007,62 +1020,17 @@ class TwitterBot:
                         if result.__typename == "Tweet":
                             # other user's post in a conversation is also returned; needs filtering here
                             if int(result.core.user_results.result.rest_id) == user_id:
-                                tweet_type = self._tweet_type(
-                                    result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted
-                                )
-                                tweet = Tweet(
-                                    result.rest_id,
-                                    tweet_type=tweet_type,
-                                    created_at=result.legacy.created_at,
-                                    source=result.source,
-                                    text=result.legacy.full_text,
-                                )
-                                yield tweet
+                                yield from self._tweet_from_result(result)
                         if result.__typename == "TweetWithVisibilityResults":
-                            try:
-                                tweet_type = self._tweet_type(
-                                    result.tweet.legacy.in_reply_to_screen_name, result.tweet.legacy.is_quote_status, result.tweet.legacy.retweeted
-                                )
-                                tweet = Tweet(
-                                    result.tweet.rest_id,
-                                    tweet_type=tweet_type,
-                                    created_at=result.tweet.legacy.created_at,
-                                    source=result.tweet.source,
-                                    text=result.tweet.legacy.full_text,
-                                )
-                            except:
-                                traceback.print_exc()
-                                print(result)
-                            yield tweet
+                            yield from self._tweet_from_result(result.tweet)
+
             elif content.entryType == "TimelineTimelineItem":
                 result = content.itemContent.tweet_results.result
                 if result:
                     if result.__typename == "Tweet":
-                        tweet_type = self._tweet_type(result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted)
-                        tweet = Tweet(
-                            result.rest_id,
-                            tweet_type=tweet_type,
-                            created_at=result.legacy.created_at,
-                            source=result.source,
-                            text=result.legacy.full_text,
-                        )
-                        yield tweet
+                        yield from self._tweet_from_result(result)
                     if result.__typename == "TweetWithVisibilityResults":
-                        try:
-                            tweet_type = self._tweet_type(
-                                result.tweet.legacy.in_reply_to_screen_name, result.tweet.legacy.is_quote_status, result.tweet.legacy.retweeted
-                            )
-                            tweet = Tweet(
-                                result.tweet.rest_id,
-                                tweet_type=tweet_type,
-                                created_at=result.tweet.legacy.created_at,
-                                source=result.tweet.source,
-                                text=result.tweet.legacy.full_text,
-                            )
-                        except:
-                            traceback.print_exc()
-                            print(result)
-                        yield tweet
+                        yield from self._tweet_from_result(result.tweet)
 
     def _json_headers(self):
         headers = copy.deepcopy(self._headers)

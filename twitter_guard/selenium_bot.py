@@ -268,6 +268,8 @@ class SeleniumTwitterBot:
             self.input_xpath(self._phonenumber, SeleniumTwitterBot.phone_input_xpath)
             self.wait_and_find_element_xpath(SeleniumTwitterBot.phone_input_xpath).send_keys(Keys.ENTER)
 
+        self.save_cookies()
+
     def check_notifications(self):
         # the notification indication will only show after refreshing
         self.driver.refresh()
@@ -372,4 +374,4 @@ if __name__ == "__main__":
 
     b = SeleniumTwitterBot(config_path=CONFIG_PATH, cookie_path=COOKIE_PATH)
     b.twitter_login()
-    b.check_notifications()
+    #b.check_notifications()

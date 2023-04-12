@@ -60,20 +60,27 @@ def numerical_id(user_id):
 
     return int_user_id
 
+def hourly_from_timestamps(timestamps):
+    SECONDS_PER_HOUR = 3600
+    SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
+    hours = [x % SECONDS_PER_DAY // SECONDS_PER_HOUR for x in timestamps]
+    hourly = [0]*24
+    for x in hours:
+        hourly[x]+=1
+    return hourly
 
 def plot_utc_timestamps_by_hour(timestamps):
     """
     Plot the hourly histogram of the timestamps.
     The timestamps are in utc timestamp format.
     """
-    SECONDS_PER_HOUR = 3600
-    SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
-    hours = [x % SECONDS_PER_DAY // SECONDS_PER_HOUR for x in timestamps]
-
+    hourly = hourly_from_timestamps(timestamps)
     # Create bar plot
-    plt.hist(hours, bins=[x for x in range(25)], density=True)
-    plt.xlim([0, 24])
-    plt.xlabel("hour (utc)")
+    plt.bar(range(24),hourly)
+    #plt.hist(hours, bins=[x for x in range(25)], density=True)
+    #plt.xlim([0, 24])
+    plt.xlabel("hour (UTC+00:00)")
+    plt.ylabel("count")
     plt.title("posting time")
     plt.show()
 
