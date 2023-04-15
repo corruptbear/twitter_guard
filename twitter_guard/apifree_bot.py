@@ -22,7 +22,7 @@ import copy
 from .selenium_bot import SeleniumTwitterBot
 from .utils import *
 from .rule_parser import rule_eval
-from .report import ReportHandler
+from .reporter import ReportHandler
 from time import sleep
 
 import snscrape.modules.twitter as sntwitter
@@ -158,6 +158,17 @@ class Tweet:
     created_at: str = dataclasses.field(default=None)
     source: str = dataclasses.field(default=None)
     text: str = dataclasses.field(default=None)
+    lang: str = dataclasses.field(default=None)
+    hashtags: list = dataclasses.field(default=None)
+
+@dataclasses.dataclass
+class TwitterList:
+    list_id: int
+    name: str = dataclasses.field(default=None)
+    description: str = dataclasses.field(default=None)
+    member_count: int = dataclasses.field(default=None)
+    subscriber_count: int = dataclasses.field(default=None)
+    creator: TwitterUserProfile = dataclasses.field(default=None)
 
 
 class TwitterLoginBot:
@@ -477,6 +488,8 @@ class TwitterLoginBot:
 
 
 class TwitterBot:
+    tmp_count = 0
+
     urls = {
         "badge_count": "https://api.twitter.com/2/badge_count/badge_count.json",
         "notification_all": "https://api.twitter.com/2/notifications/all.json",
@@ -490,6 +503,8 @@ class TwitterBot:
         "tweets_replies": "https://twitter.com/i/api/graphql/pNl8WjKAvaegIoVH--FuoQ/UserTweetsAndReplies",
         "user_by_rest_id": "https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId",
         "user_by_screen_name": "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName",
+        "tweet_detail": "https://twitter.com/i/api/graphql/7d8fexGPbM0BRc5DkacJqA/TweetDetail",
+        "combined_lists":"https://twitter.com/i/api/graphql/rIxum3avpCu7APi7mxTNjw/CombinedLists",
     }
 
     jot_form_success = {
@@ -555,6 +570,28 @@ class TwitterBot:
         "responsive_web_text_conversations_enabled": False,
         "longform_notetweets_richtext_consumption_enabled": False,
         "responsive_web_enhance_cards_enabled": False,
+    }
+
+    combined_lists_form = {
+        "variables": {"userId":"86539341","count":100},
+        "features": standard_graphql_features,
+    }
+
+    tweet_detail_form = {
+        "variables": {
+            "focalTweetId": "1645587845359468551",
+            #"cursor": "NAEAAPAOHBn2IYDA0a2avq3WLYLA0ZnX8tjWLYCA0dGl664SAOHU4cC4sdYtgMDRgdCXrCQA0LW-7a3WLYyA06nn59ItAPAb0tWD1K7WLYiA0LGuv9bXLYLA0LGpxNbXLYyAtsGA0r-0LYCAvumX5fzXWgBAreXRsUgAUNPZgrGsWgBR0Pm3xNEJANDhpoOg2C2EwNTty-LiLQBQ1IXzgq4bAODUvbrLx9cthsDT7diluhIAUdLl5JnZCQBBkdTmp7QAMd2r4qIAUNKRwN7TCQDwB9DpxPLT1i2EwNPdmJ_Z1y2AwNPR8MkkAPABgNOhj_781i2-gL3F3ZzZo2MAMaW5kJkAUdClkaP9kADwB_GfvKzWLYzA0-m5htPWLSUCEhUEAAA",
+            "referrer": "tweet",
+            "with_rux_injections": False,
+            "includePromotedContent": True,
+            "withCommunity": True,
+            "withQuickPromoteEligibilityTweetFields": True,
+            "withBirdwatchNotes": True,
+            "withDownvotePerspective": False,
+            "withVoice": True,
+            "withV2Timeline": True,
+        },
+        "features": standard_graphql_features,
     }
 
     create_tweet_form = {
@@ -896,7 +933,11 @@ class TwitterBot:
         display_msg("timeline: non_cursor_notification")
         # users_liked_your_tweet/user_liked_multiple_tweets/user_liked_tweets_about_you/generic_login_notification/generic_report_received/users_retweeted_your_tweet ; no userid is included in these entries
         for entry in non_cursor_notification_entries:
-            if entry.content.item.clientEventInfo.element not in ["generic_login_notification", "generic_report_received", "generic_abuse_report_actioned_with_count"]:
+            if entry.content.item.clientEventInfo.element not in [
+                "generic_login_notification",
+                "generic_report_received",
+                "generic_abuse_report_actioned_with_count",
+            ]:
                 entry_id = entry.entryId[13:]
                 entry_user_id = entryid_notification_users[entry_id]
                 print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
@@ -948,41 +989,66 @@ class TwitterBot:
         if block:
             self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users})
 
-    def _cursor_from_entries(self, entries):
-        for e in entries[-2:]:
-            content = e.content
-            if content.entryType == "TimelineTimelineCursor":
-                if content.cursorType == "Bottom":
-                    return content.value
+    @staticmethod
+    def _cursor_from_entries(entries):
+        e = entries[-1]
+        content = e.content
+        if content.entryType == "TimelineTimelineCursor":
+            if content.cursorType == "Bottom":
+                return content.value
+        elif content.entryType == "TimelineTimelineItem":
+            if content.itemContent and (content.itemContent.cursorType == "Bottom" or content.itemContent.cursorType == "ShowMoreThreads" or content.itemContent.cursorType == "ShowMoreThreadsPrompt"):
+                return content.itemContent.value
 
-    def _users_from_entries(self, entries):
+    @staticmethod
+    def _status_and_user_from_result(result):
+        """
+        Extract the user profile from the result dictionary.
+        """
+        #non-normal result could happen when the result is fetched from the user related endpoints
+        #impossible when the result is embedded in other returned entries
+        if result is None:
+            return "does_not_exist", None
+
+        user = result.legacy
+
+        if result.__typename == "User":
+            p = TwitterUserProfile(
+                int(result.rest_id),
+                user.screen_name,
+                created_at=user.created_at,
+                following_count=user.friends_count,
+                followers_count=user.followers_count,
+                tweet_count=user.statuses_count,
+                media_count=user.media_count,
+                favourites_count=user.favourites_count,
+                display_name=user.name,
+            )
+            if result.legacy.profile_interstitial_type == "fake_account":
+                return "fake_account", p
+            if result.legacy.protected:
+                return "protected", p
+            return "normal", p
+
+        if result.__typename == "UserUnavailable":
+            if "suspends" in result.unavailable_message.text:
+                return "suspended", None
+
+    @staticmethod
+    def _users_from_entries(entries):
         for e in entries:
             content = e.content
             if content.entryType == "TimelineTimelineItem":
                 r = content.itemContent.user_results.result
+                status, user = TwitterBot._status_and_user_from_result(r)
 
-                if content.itemContent.user_results.result.__typename == "User":
-                    user = content.itemContent.user_results.result.legacy
-
-                    p = TwitterUserProfile(
-                        int(e.entryId.split("-")[1]),
-                        user.screen_name,
-                        created_at=user.created_at,
-                        following_count=user.friends_count,
-                        followers_count=user.followers_count,
-                        tweet_count=user.statuses_count,
-                        media_count=user.media_count,
-                        favourites_count=user.favourites_count,
-                        display_name=user.name,
-                    )
-
-                    yield p
-
+                if user is not None:
+                    yield user
                 else:
-                    # otherwise the typename is UserUnavailable
                     print("cannot get user data", e.entryId)
 
-    def _tweet_type(self, in_reply_to_screen_name, is_quote_status, retweeted):
+    @staticmethod
+    def _tweet_type(in_reply_to_screen_name, is_quote_status, retweeted):
         if in_reply_to_screen_name is not None:
             if is_quote_status:
                 return "reply_by_quote"
@@ -995,42 +1061,56 @@ class TwitterBot:
                 return "retweeted"
             return "original"
 
-    def _tweet_from_result(self,result):
-        tweet_type = self._tweet_type(
-            result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted
-        )
+    @staticmethod
+    def _tweet_from_result(result):
+        tweet_type = TwitterBot._tweet_type(result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted)
         tweet = Tweet(
             result.rest_id,
             tweet_type=tweet_type,
             created_at=result.legacy.created_at,
             source=result.source,
             text=result.legacy.full_text,
+            lang = result.legacy.lang,
+            hashtags = [x['text'] for x in result.legacy.entities.hashtags]
         )
         if "advertiser-interface" not in tweet.source:
             yield tweet
 
-    def _text_from_entries(self, entries, user_id):
+    @staticmethod
+    def _list_from_list(listdict):
+        status, creator = TwitterBot._status_and_user_from_result(listdict.user_results.result)
+        twitter_list = TwitterList(int(listdict.id_str),name=listdict.name,description=listdict.description,member_count=listdict.member_count,subscriber_count=listdict.subscriber_count,creator=creator)
+        return twitter_list
+
+    @staticmethod
+    def _text_from_entries(entries, user_id):
         for e in entries:
             content = e.content
-
             if content.entryType == "TimelineTimelineModule":
                 for i in content.items:
-                    result = i.item.itemContent.tweet_results.result
+                    itemContent = i.item.itemContent
+                    if itemContent.__typename == "TimelineTweet":
+                        result = itemContent.tweet_results.result
+                        if result:
+                            if result.__typename == "Tweet":
+                                #when user_id is not provided, return everything; otherwise only return tweets from user_id
+                                if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
+                                    yield from TwitterBot._tweet_from_result(result)
+                            if result.__typename == "TweetWithVisibilityResults":
+                                yield from TwtterBot._tweet_from_result(result.tweet)
+            elif content.entryType == "TimelineTimelineItem":
+                itemContent = content.itemContent
+                if itemContent.__typename == "TimelineTweet":
+                    result = itemContent.tweet_results.result
                     if result:
                         if result.__typename == "Tweet":
-                            # other user's post in a conversation is also returned; needs filtering here
-                            if int(result.core.user_results.result.rest_id) == user_id:
-                                yield from self._tweet_from_result(result)
+                            yield from TwitterBot._tweet_from_result(result)
                         if result.__typename == "TweetWithVisibilityResults":
-                            yield from self._tweet_from_result(result.tweet)
+                            yield from TwitterBot._tweet_from_result(result.tweet)
+                elif itemContent.__typename == "TimelineTwitterList":
+                    twitter_list = itemContent.list
+                    yield TwitterBot._list_from_list(twitter_list)
 
-            elif content.entryType == "TimelineTimelineItem":
-                result = content.itemContent.tweet_results.result
-                if result:
-                    if result.__typename == "Tweet":
-                        yield from self._tweet_from_result(result)
-                    if result.__typename == "TweetWithVisibilityResults":
-                        yield from self._tweet_from_result(result.tweet)
 
     def _json_headers(self):
         headers = copy.deepcopy(self._headers)
@@ -1039,10 +1119,12 @@ class TwitterBot:
 
         return headers
 
-    def _navigate_graphql_entries(self, session, url, headers, form):
+    @staticmethod
+    def _navigate_graphql_entries(session, url, headers, form):
         while True:
             encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
             r = session.get(url, headers=headers, params=encoded_params)
+            #print(r.status_code,r.text)
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1051,6 +1133,8 @@ class TwitterBot:
 
             if data.retweeters_timeline:
                 instructions = data.retweeters_timeline.timeline.instructions
+            elif data.threaded_conversation_with_injections_v2:
+                instructions = data.threaded_conversation_with_injections_v2.instructions
             else:
                 result = data.user.result
                 if result.timeline_v2:
@@ -1059,17 +1143,38 @@ class TwitterBot:
                     instructions = result.timeline.timeline.instructions
 
             entries = [x for x in instructions if x.type == "TimelineAddEntries"][0].entries
+            #print(entries)
 
             if len(entries) <= 2:
                 break
 
             yield entries
 
-            bottom_cursor = self._cursor_from_entries(entries)
+            bottom_cursor = TwitterBot._cursor_from_entries(entries)
+            #could happen when nagivating tweet threads
+            if bottom_cursor is None:
+                break
             form["variables"]["cursor"] = bottom_cursor
 
-    # TODO: this could be done login free
-    def get_tweets_replies(self, user_id):
+    @staticmethod
+    def get_user_lists(user_id):
+        """
+        Get a user's lists.
+        """
+        user_id = numerical_id(user_id)
+
+        url = TwitterBot.urls["combined_lists"]
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        form = copy.deepcopy(TwitterBot.combined_lists_form)
+        form["variables"]["userId"] = str(user_id)
+        form["features"]["blue_business_profile_image_shape_enabled"] = True
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+
+        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
+            yield from TwitterBot._text_from_entries(entries, user_id)
+
+    @staticmethod
+    def get_tweets_replies(user_id):
         """
         Gets the texts from the user's tweets and replies tab.
         """
@@ -1084,8 +1189,8 @@ class TwitterBot:
 
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
-            yield from self._text_from_entries(entries, user_id)
+        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
+            yield from TwitterBot._text_from_entries(entries, user_id)
 
     def get_following(self, user_id):
         """
@@ -1232,58 +1337,52 @@ class TwitterBot:
 
     @staticmethod
     def tmp_session_headers():
-        tmp_session = requests.Session()
+        if TwitterBot.tmp_count == 0:
+            tmp_session = requests.Session()
 
-        tmp_headers = copy.deepcopy(TwitterBot.default_headers)
+            tmp_headers = copy.deepcopy(TwitterBot.default_headers)
 
-        del tmp_headers["x-csrf-token"]
-        del tmp_headers["x-twitter-auth-type"]
+            del tmp_headers["x-csrf-token"]
+            del tmp_headers["x-twitter-auth-type"]
 
-        r = tmp_session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=tmp_headers)
-        if r.status_code == 200:
-            tmp_headers["x-guest-token"] = r.json()["guest_token"]
+            r = tmp_session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=tmp_headers)
+            if r.status_code == 200:
+                tmp_headers["x-guest-token"] = r.json()["guest_token"]
 
-        # the ct0 value is just a random 32-character string generated from random bytes at client side
-        tmp_session.cookies.set("ct0", genct0())
-        # set the headers accordingly
-        tmp_headers["x-csrf-token"] = tmp_session.cookies.get("ct0")
+            # the ct0 value is just a random 32-character string generated from random bytes at client side
+            tmp_session.cookies.set("ct0", genct0())
+            # set the headers accordingly
+            tmp_headers["x-csrf-token"] = tmp_session.cookies.get("ct0")
 
-        tmp_headers["Content-Type"] = "application/json"
-        tmp_headers["Host"] = "twitter.com"
+            tmp_headers["Content-Type"] = "application/json"
+            tmp_headers["Host"] = "twitter.com"
 
-        return tmp_session, tmp_headers
+            TwitterBot.tmp_session = tmp_session
+            TwitterBot.tmp_headers = tmp_headers
+
+        TwitterBot.tmp_count+=1
+
+        if TwitterBot.tmp_count == 100:
+            TwitterBot.tmp_count = 0
+
+        return TwitterBot.tmp_session, TwitterBot.tmp_headers
+
 
     @staticmethod
-    def _user_from_result(result):
-        """
-        Extract the user profile from the result dictionary.
-        """
-        if result is None:
-            return "does_not_exist", None
+    def tweet_detail(tweet_id):
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        display_msg("get tweet details")
 
-        user = result.legacy
+        url = TwitterBot.urls["tweet_detail"]     
+        form = copy.deepcopy(TwitterBot.tweet_detail_form)
 
-        if result.__typename == "User":
-            p = TwitterUserProfile(
-                int(result.rest_id),
-                user.screen_name,
-                created_at=user.created_at,
-                following_count=user.friends_count,
-                followers_count=user.followers_count,
-                tweet_count=user.statuses_count,
-                media_count=user.media_count,
-                favourites_count=user.favourites_count,
-                display_name=user.name,
-            )
-            if result.legacy.profile_interstitial_type == "fake_account":
-                return "fake_account", p
-            if result.legacy.protected:
-                return "protected", p
-            return "normal", p
+        form["variables"]["focalTweetId"]=str(tweet_id)
+        form["features"]["blue_business_profile_image_shape_enabled"] = False
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        if result.__typename == "UserUnavailable":
-            if "suspends" in result.unavailable_message.text:
-                return "suspended", None
+        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
+            yield from TwitterBot._text_from_entries(entries, None)
+
 
     @staticmethod
     def user_by_screen_name(screen_name):
@@ -1306,7 +1405,7 @@ class TwitterBot:
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
-            return TwitterBot._user_from_result(response.data.user.result)
+            return TwitterBot._status_and_user_from_result(response.data.user.result)
         else:
             print(r.status_code, r.text)
 
@@ -1331,7 +1430,7 @@ class TwitterBot:
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
-            return TwitterBot._user_from_result(response.data.user.result)
+            return TwitterBot._status_and_user_from_result(response.data.user.result)
         else:
             print(r.status_code, r.text)
 

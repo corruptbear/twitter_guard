@@ -491,11 +491,11 @@ class ReportHandler:
 
             #skip user already reported
             if skip_same_user and screen_name in abuser_list:
-                print(f"Skipped: {screen_name:<16} {user_id} user created at:{created_at} posted at:{posted_at}")
+                print(f"Skipped: {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
                 continue
           
             abuser_list[screen_name] = user_id
-            print(f"{count:<5} {screen_name:<16} {user_id} user created at:{created_at} posted at:{posted_at}")
+            print(f"{count:<5} {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
             count += 1
             
             #self.report_user(option_name, target=self._target, user_id=user_id, screen_name = screen_name, context_msg=context_msg)
