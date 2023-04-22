@@ -768,7 +768,11 @@ class TwitterBot:
         url = TwitterBot.urls["badge_count"]
         badge_form = TwitterBot.badge_form
         r = self._session.get(url, headers=self._headers, params=badge_form)
-        print(r.status_code, r.json())
+        result = None
+        if r.status_code == 200:
+            result = r.json()
+        print(r.status_code, result)
+        return r.status_code, result
 
     def update_local_cursor(self, val):
         TwitterBot.notification_all_form["cursor"] = val
@@ -1003,14 +1007,14 @@ class TwitterBot:
 
     @staticmethod
     def _cursor_from_entries(entries):
-        e = entries[-1]
-        content = e.content
-        if content.entryType == "TimelineTimelineCursor":
-            if content.cursorType == "Bottom":
-                return content.value
-        elif content.entryType == "TimelineTimelineItem":
-            if content.itemContent and (content.itemContent.cursorType == "Bottom" or content.itemContent.cursorType == "ShowMoreThreads" or content.itemContent.cursorType == "ShowMoreThreadsPrompt"):
-                return content.itemContent.value
+        for e in entries[-2:]:
+            content = e.content
+            if content.entryType == "TimelineTimelineCursor":
+                if content.cursorType == "Bottom":
+                    return content.value
+            elif content.entryType == "TimelineTimelineItem":
+                if content.itemContent and (content.itemContent.cursorType == "Bottom" or content.itemContent.cursorType == "ShowMoreThreads" or content.itemContent.cursorType == "ShowMoreThreadsPrompt"):
+                    return content.itemContent.value
 
     @staticmethod
     def _status_and_user_from_result(result):
@@ -1148,6 +1152,7 @@ class TwitterBot:
     def _navigate_graphql_entries(session_type, url, form, session = None, headers = None):
         while True:
             encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+            #generate session and header for guest mode
             if session_type != SessionType.Authenticated:
                 session, headers = TwitterBot.tmp_session_headers()
             r = session.get(url, headers=headers, params=encoded_params)
@@ -1173,22 +1178,19 @@ class TwitterBot:
                     instructions = result.timeline_v2.timeline.instructions
                 else:
                     instructions = result.timeline.timeline.instructions
-                    
+
             add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"] 
             if len(add_instructions )!=0:
                 entries=add_instructions[0].entries
             else:
                 entries=[]
             entries+=[x.entry for x in instructions if x.type == "TimelineReplaceEntry"]
-            
+
             #print(instructions)
-            #display_msg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            #print(entries)
-            
 
             if len(entries) <= 2:
                 break
-                
+
             yield entries
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)
@@ -1414,26 +1416,26 @@ class TwitterBot:
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         display_msg("search (login free)")
         
-        url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"     
+        #url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
+        url = "https://twitter.com/i/api/graphql/WeHGEHYtJA0sfOOFIBMt8g/SearchTimeline"
 
         form = {
             'variables' : {
                 "rawQuery": query,
-                "count": 20,
+                "count": 100,
                 "product": "Latest",
-                "withDownvotePerspective": False,
-                "withReactionsMetadata": False,
-                "withReactionsPerspective": False,
+                "querySource": "typed_query",
+                #not sure
+                "tweetSearchMode": "live",
                 },
             'features': TwitterBot.standard_graphql_features,
         }
-        
+
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
-        
+
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
             yield from TwitterBot._text_from_entries(entries)
-        
 
     @staticmethod
     def tweet_detail(tweet_id):
