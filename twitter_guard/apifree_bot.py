@@ -146,7 +146,7 @@ class TwitterUserProfile:
     def __post_init__(self):
         if self.created_at is not None:
             current_time = datetime.now(timezone.utc)
-            created_time = datetime.strptime(self.created_at, "%a %b %d %H:%M:%S +0000 %Y").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
+            created_time = datetime.strptime(self.created_at, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
             time_diff = current_time - created_time
             self.days_since_registration = time_diff.days
 
@@ -160,6 +160,14 @@ class Tweet:
     text: str = dataclasses.field(default=None)
     lang: str = dataclasses.field(default=None)
     hashtags: list = dataclasses.field(default=None)
+    
+    view_count : int = dataclasses.field(default=None)
+    reply_count : int = dataclasses.field(default=None)
+    retweet_count : int = dataclasses.field(default=None)
+    favorite_count : int = dataclasses.field(default=None)
+    quote_count : int = dataclasses.field(default=None)
+    
+    user : TwitterUserProfile = dataclasses.field(default=None)
 
 @dataclasses.dataclass
 class TwitterList:
@@ -168,8 +176,12 @@ class TwitterList:
     description: str = dataclasses.field(default=None)
     member_count: int = dataclasses.field(default=None)
     subscriber_count: int = dataclasses.field(default=None)
-    creator: TwitterUserProfile = dataclasses.field(default=None)
+    user: TwitterUserProfile = dataclasses.field(default=None)
 
+class SessionType:
+    Authenticated = "Authenticated"
+    Guest = "Guest"
+    
 
 class TwitterLoginBot:
     def __init__(self, email, password, screenname, phonenumber, cookie_path=None):
@@ -871,7 +883,7 @@ class TwitterBot:
                 p = TwitterUserProfile(
                     user.id,
                     user.screen_name,
-                    created_at=user.created_at,
+                    created_at=sns_timestamp_from_tweet_timestamp(user.created_at),
                     following_count=user.friends_count,
                     followers_count=user.followers_count,
                     tweet_count=user.statuses_count,
@@ -1016,7 +1028,7 @@ class TwitterBot:
             p = TwitterUserProfile(
                 int(result.rest_id),
                 user.screen_name,
-                created_at=user.created_at,
+                created_at=sns_timestamp_from_tweet_timestamp(user.created_at),
                 following_count=user.friends_count,
                 followers_count=user.followers_count,
                 tweet_count=user.statuses_count,
@@ -1064,26 +1076,36 @@ class TwitterBot:
     @staticmethod
     def _tweet_from_result(result):
         tweet_type = TwitterBot._tweet_type(result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted)
+        try:
+            _, user = TwitterBot._status_and_user_from_result(result.core.user_results.result)
+        except:
+            print(result)
         tweet = Tweet(
             result.rest_id,
             tweet_type=tweet_type,
-            created_at=result.legacy.created_at,
+            created_at=sns_timestamp_from_tweet_timestamp(result.legacy.created_at),
             source=result.source,
             text=result.legacy.full_text,
             lang = result.legacy.lang,
-            hashtags = [x['text'] for x in result.legacy.entities.hashtags]
+            view_count = result.views.count,
+            favorite_count = result.legacy.favorite_count,
+            reply_count = result.legacy.reply_count,
+            retweet_count = result.legacy.retweet_count,
+            quote_count = result.legacy.quote_count,
+            hashtags = [x['text'] for x in result.legacy.entities.hashtags],
+            user = user
         )
         if "advertiser-interface" not in tweet.source:
             yield tweet
 
     @staticmethod
     def _list_from_list(listdict):
-        status, creator = TwitterBot._status_and_user_from_result(listdict.user_results.result)
-        twitter_list = TwitterList(int(listdict.id_str),name=listdict.name,description=listdict.description,member_count=listdict.member_count,subscriber_count=listdict.subscriber_count,creator=creator)
+        status, user = TwitterBot._status_and_user_from_result(listdict.user_results.result)
+        twitter_list = TwitterList(int(listdict.id_str),name=listdict.name,description=listdict.description,member_count=listdict.member_count,subscriber_count=listdict.subscriber_count,user=user)
         return twitter_list
 
     @staticmethod
-    def _text_from_entries(entries, user_id):
+    def _text_from_entries(entries, user_id=None):
         for e in entries:
             content = e.content
             if content.entryType == "TimelineTimelineModule":
@@ -1120,11 +1142,16 @@ class TwitterBot:
         return headers
 
     @staticmethod
-    def _navigate_graphql_entries(session, url, headers, form):
+    def _navigate_graphql_entries(session_type, url, form, session = None, headers = None):
         while True:
             encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+            if session_type != SessionType.Authenticated:
+                session, headers = TwitterBot.tmp_session_headers()
             r = session.get(url, headers=headers, params=encoded_params)
             #print(r.status_code,r.text)
+            if r.status_code != 200:
+                print(r.status_code, r.text)
+                break
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1135,6 +1162,8 @@ class TwitterBot:
                 instructions = data.retweeters_timeline.timeline.instructions
             elif data.threaded_conversation_with_injections_v2:
                 instructions = data.threaded_conversation_with_injections_v2.instructions
+            elif data.search_by_raw_query:
+                instructions = data.search_by_raw_query.search_timeline.timeline.instructions
             else:
                 result = data.user.result
                 if result.timeline_v2:
@@ -1164,14 +1193,14 @@ class TwitterBot:
         user_id = numerical_id(user_id)
 
         url = TwitterBot.urls["combined_lists"]
-        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         form = copy.deepcopy(TwitterBot.combined_lists_form)
         form["variables"]["userId"] = str(user_id)
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
-            yield from TwitterBot._text_from_entries(entries, user_id)
+        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+            yield from TwitterBot._text_from_entries(entries, user_id = user_id)
 
     @staticmethod
     def get_tweets_replies(user_id):
@@ -1183,14 +1212,14 @@ class TwitterBot:
         # headers = self._json_headers()
         url = TwitterBot.urls["tweets_replies"]
 
-        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
         form["variables"]["userId"] = str(user_id)
 
-        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
-            yield from TwitterBot._text_from_entries(entries, user_id)
+        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+            yield from TwitterBot._text_from_entries(entries, user_id = user_id)
 
     def get_following(self, user_id):
         """
@@ -1210,7 +1239,7 @@ class TwitterBot:
         # set userID in form
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
             yield from self._users_from_entries(entries)
 
     def get_followers(self, user_id):
@@ -1231,7 +1260,7 @@ class TwitterBot:
         # set userID in form
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
             yield from self._users_from_entries(entries)
 
     def get_retweeters(self, tweet_url):
@@ -1254,7 +1283,7 @@ class TwitterBot:
         # set tweetId in form
         form["variables"]["tweetId"] = tweet_url.split("/")[-1]
 
-        for entries in self._navigate_graphql_entries(self._session, url, headers, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
             yield from self._users_from_entries(entries)
 
     def _tweet_creation_form(self, text):
@@ -1367,10 +1396,36 @@ class TwitterBot:
 
         return TwitterBot.tmp_session, TwitterBot.tmp_headers
 
+       
+    @staticmethod
+    def search_timeline(query):
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        display_msg("search (login free)")
+        
+        url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"     
+
+        form = {
+            'variables' : {
+                "rawQuery": query,
+                "count": 20,
+                "product": "Latest",
+                "withDownvotePerspective": False,
+                "withReactionsMetadata": False,
+                "withReactionsPerspective": False,
+                },
+            'features': TwitterBot.standard_graphql_features,
+        }
+        
+        form["features"]["blue_business_profile_image_shape_enabled"] = True
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+        
+        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+            yield from TwitterBot._text_from_entries(entries, user_id = None)
+        
 
     @staticmethod
     def tweet_detail(tweet_id):
-        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         display_msg("get tweet details")
 
         url = TwitterBot.urls["tweet_detail"]     
@@ -1380,8 +1435,8 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = False
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(tmp_session, url, tmp_headers, form):
-            yield from TwitterBot._text_from_entries(entries, None)
+        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+            yield from TwitterBot._text_from_entries(entries, user_id = None)
 
 
     @staticmethod

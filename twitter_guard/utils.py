@@ -5,7 +5,7 @@ import yaml
 import traceback
 from datetime import datetime, timezone
 import snscrape.modules.twitter as sntwitter
-
+import re
 
 def display_msg(msg):
     print(f"\n{msg:.>50}")
@@ -34,15 +34,21 @@ def load_yaml(filepath):
 def sns_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc)
 
-
 def tweet_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%a %b %d %H:%M:%S +0000 %Y").replace(tzinfo=timezone.utc)
 
-
 def tweet_timestamp_from_sns_timestamp(sns_timestamp):
-    return datetime.strptime(sns_timestamp, "%Y-%m-%dT%H:%M:%S%z").strftime("%a %b %d %H:%M:%S +0000 %Y")
+    return sns_timestamp_to_utc_datetime(sns_timestamp).strftime("%a %b %d %H:%M:%S +0000 %Y")
+
+def sns_timestamp_from_tweet_timestamp(tweet_timestamp):
+    return tweet_timestamp_to_utc_datetime(tweet_timestamp).replace(tzinfo=timezone.utc).isoformat()
 
 
+def get_source_label(s):
+    #s = '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>'
+    match = re.search(r">(.*)</a>", s)
+    return match.group(1)
+    
 def id_from_screen_name(screen_name):
     """
     Gets the numerical user id given the user handle.

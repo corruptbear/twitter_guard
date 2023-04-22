@@ -4,9 +4,6 @@ import sqlite3
 from .utils import *
 from .apifree_bot import TwitterBot
 
-import snscrape.modules.twitter as sntwitter
-
-
 class Recorder:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -67,7 +64,7 @@ class Recorder:
         """
         Collect results incrementally
         """
-        results = sntwitter.TwitterSearchScraper(query)
+        results = TwitterBot.search_timeline(query)
 
         self._cursor.execute("SELECT rowid, latest_result_date from queries WHERE query = (?)", (query,))
         self.conn.commit()
@@ -80,30 +77,30 @@ class Recorder:
         else:
             latest_result_date = "1970-01-01T00:00:00+00:00"
             self._cursor.execute("INSERT INTO queries VALUES (?,?)", (query, "1970-01-01T00:00:00+00:00"))
+            
 
-        recorded_latest_timestamp = sns_timestamp_to_utc_datetime(latest_result_date)
+        recorded_latest_timestamp = sns_timestamp_to_utc_datetime(latest_result_date) #2023-04-16T01:19:29+00:00
 
         count = 0
-        for result in results.get_items():
-            content = json.loads(result.json())
+        for tweet in results:
             # print(content)
-
-            user_id = int(content["user"]["id"])
-            screen_name = content["user"]["username"]
-            created_at = content["user"]["created"]
-            following_count = int(content["user"]["friendsCount"])
-            followers_count = int(content["user"]["followersCount"])
-            tweet_count = int(content["user"]["statusesCount"])
-            favourites_count = int(content["user"]["favouritesCount"])
-            media_count = int(content["user"]["mediaCount"])
+            user = tweet.user
+            user_id = int(user.user_id)
+            screen_name = user.screen_name
+            created_at = user.created_at
+            following_count = user.following_count
+            followers_count = user.followers_count
+            tweet_count = user.tweet_count
+            favourites_count = user.favourites_count
+            media_count = user.media_count
 
             # tweet information
-            text_raw = content["rawContent"]
-            post_id = int(content["id"])
-            posted_at = content["date"]
-            source = content["source"]
+            text_raw = tweet.text
+            post_id = tweet.tweet_id
+            posted_at = tweet.created_at
+            source = tweet.source
 
-            if content["sourceLabel"] != "Twitter Web App":
+            if get_source_label(source) != "Twitter Web App":
                 print(f"{source:.>100}")
 
             timestamp = sns_timestamp_to_utc_datetime(posted_at)
@@ -122,14 +119,14 @@ class Recorder:
             print(f"counter: {count:<6} timestamp: {posted_at:<25} user:{screen_name:<16} text: {text_raw}")
 
             # tweet statistics
-            if content["viewCount"] is not None:
-                view_count = int(content["viewCount"])
+            if tweet.view_count is not None:
+                view_count = tweet.view_count
             else:
                 view_count = None
-            reply_count = int(content["replyCount"])
-            retweet_count = int(content["retweetCount"])
-            like_count = int(content["likeCount"])
-            quote_count = int(content["quoteCount"])
+            reply_count = tweet.reply_count
+            retweet_count = tweet.retweet_count
+            like_count = tweet.favorite_count
+            quote_count = tweet.quote_count
 
             # related entities
             # retweeted_tweet = content["retweetedTweet"]
