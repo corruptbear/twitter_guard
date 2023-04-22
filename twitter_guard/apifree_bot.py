@@ -22,7 +22,7 @@ import copy
 from .selenium_bot import SeleniumTwitterBot
 from .utils import *
 from .rule_parser import rule_eval
-from .reporter import ReportHandler
+#from .reporter import ReportHandler
 from time import sleep
 
 import snscrape.modules.twitter as sntwitter
@@ -712,7 +712,7 @@ class TwitterBot:
         # when disabled, will use the default cursor
         self._load_cursor()
 
-        self.reporter = ReportHandler(self._headers, self._session)
+        #self.reporter = ReportHandler(self._headers, self._session)
 
     def _set_selenium_cookies(self, cookies):
         display_msg("setting cookies")
@@ -1420,7 +1420,7 @@ class TwitterBot:
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
         
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries, user_id = None)
+            yield from TwitterBot._text_from_entries(entries)
         
 
     @staticmethod
@@ -1436,7 +1436,7 @@ class TwitterBot:
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries, user_id = None)
+            yield from TwitterBot._text_from_entries(entries)
 
 
     @staticmethod

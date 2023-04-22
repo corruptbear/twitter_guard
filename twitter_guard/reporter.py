@@ -6,6 +6,7 @@ from time import sleep
 import copy
 from .utils import *
 import snscrape.modules.twitter as sntwitter
+from .apifree_bot import TwitterBot
 
 class _ReportType(Enum):
     PROFILE = "profile"
@@ -457,37 +458,30 @@ class ReportHandler:
         
         self._report(option_name, _ReportType.TWEET, target=target, user_id=user_id, screen_name=screen_name, tweet_id=tweet_id, context_msg=context_msg)
 
-    def _report_generator(self, items, option_name, context_msg=None, by=None, skip_same_user=True):
+    def _report_generator(self, results, option_name, context_msg=None, by=None, skip_same_user=True):
         # report rate too high will make you black_listed
         count = 1
 
         # only report once
         abuser_list = {}
+        
+        for tweet in results:
+            # print(content)
+            user = tweet.user
+            user_id = int(user.user_id)
+            screen_name = user.screen_name
+            created_at = user.created_at
+            following_count = user.following_count
+            followers_count = user.followers_count
+            tweet_count = user.tweet_count
+            favourites_count = user.favourites_count
+            media_count = user.media_count
 
-        for item in items.get_items():
-            content = json.loads(item.json())
-                       
-            #'followersCount': 0, 'friendsCount': 0, 'statusesCount': 5, 'favouritesCount': 0, 'mediaCount': 4
-            user_id = content["user"]["id"]
-            screen_name = content["user"]["username"]
-            created_at = content["user"]["created"]
-            
-            #tweet information
-            text_raw = content['rawContent']
-            post_id = content['id']
-            posted_at = content['date']
-            source = content['sourceLabel']
-            #tweet statistics
-            view_count = content['viewCount']
-            reply_count = content['replyCount']
-            retweet_count = content['retweetCount']
-            like_count = content["likeCount"]
-            quote_count = content["quoteCount"]
-            #related entities
-            retweeted_tweet = content["retweetedTweet"]
-            quoted_tweet = content["quotedTweet"]
-            in_reply_to_tweet_id = content["inReplyToTweetId"]
-            in_reply_to_user = content["inReplyToUser"]
+            # tweet information
+            text_raw = tweet.text
+            post_id = tweet.tweet_id
+            posted_at = tweet.created_at
+            source = tweet.source
 
             #skip user already reported
             if skip_same_user and screen_name in abuser_list:
@@ -510,7 +504,7 @@ class ReportHandler:
     def report_from_search(self, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
         display_msg("report accounts from search term")
         self._target = target
-        x = sntwitter.TwitterSearchScraper(phrase)
+        x = TwitterBot.search_timeline(phrase)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
 
 
@@ -526,5 +520,5 @@ class ReportHandler:
         """
         display_msg("report accounts from hashtag")
         self._target = target
-        x = sntwitter.TwitterHashtagScraper(hashtag)
+        x = TwitterBot.search_timeline("#"+hashtag)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)

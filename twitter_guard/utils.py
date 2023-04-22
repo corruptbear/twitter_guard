@@ -48,7 +48,7 @@ def get_source_label(s):
     #s = '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>'
     match = re.search(r">(.*)</a>", s)
     return match.group(1)
-    
+
 def id_from_screen_name(screen_name):
     """
     Gets the numerical user id given the user handle.

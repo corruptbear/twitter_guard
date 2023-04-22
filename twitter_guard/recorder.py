@@ -128,11 +128,6 @@ class Recorder:
             like_count = tweet.favorite_count
             quote_count = tweet.quote_count
 
-            # related entities
-            # retweeted_tweet = content["retweetedTweet"]
-            # quoted_tweet = content["quotedTweet"]
-            # in_reply_to_tweet_id = content["inReplyToTweetId"]
-            # in_reply_to_user = content["inReplyToUser"]
             self._cursor.execute(
                 "INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
