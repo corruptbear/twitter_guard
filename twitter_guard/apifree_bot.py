@@ -1095,7 +1095,8 @@ class TwitterBot:
             hashtags = [x['text'] for x in result.legacy.entities.hashtags],
             user = user
         )
-        if "advertiser-interface" not in tweet.source:
+        #TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
+        if not ( ("advertiser-interface" in tweet.source)  or ("Twitter for Advertisers" in tweet.source)):
             yield tweet
 
     @staticmethod
@@ -1107,6 +1108,8 @@ class TwitterBot:
     @staticmethod
     def _text_from_entries(entries, user_id=None):
         for e in entries:
+            if "promoted-tweet" in e.entryId:
+                continue
             content = e.content
             if content.entryType == "TimelineTimelineModule":
                 for i in content.items:
@@ -1170,13 +1173,22 @@ class TwitterBot:
                     instructions = result.timeline_v2.timeline.instructions
                 else:
                     instructions = result.timeline.timeline.instructions
-
-            entries = [x for x in instructions if x.type == "TimelineAddEntries"][0].entries
+                    
+            add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"] 
+            if len(add_instructions )!=0:
+                entries=add_instructions[0].entries
+            else:
+                entries=[]
+            entries+=[x.entry for x in instructions if x.type == "TimelineReplaceEntry"]
+            
+            #print(instructions)
+            #display_msg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             #print(entries)
+            
 
             if len(entries) <= 2:
                 break
-
+                
             yield entries
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)

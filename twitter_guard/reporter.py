@@ -503,6 +503,7 @@ class ReportHandler:
 
     def report_from_search(self, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
         display_msg("report accounts from search term")
+        display_msg(phrase)
         self._target = target
         x = TwitterBot.search_timeline(phrase)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
@@ -519,6 +520,7 @@ class ReportHandler:
         context_msg (str): additional context message.
         """
         display_msg("report accounts from hashtag")
+        display_msg("#"+hashtag)
         self._target = target
         x = TwitterBot.search_timeline("#"+hashtag)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
