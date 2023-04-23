@@ -678,7 +678,7 @@ class TwitterBot:
         "TE": "trailers",
     }
 
-    def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None):
+    def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None, backup_log_path=None):
         """
         In order to save the list of newly blocked accounts, the block_list_path should be specified, even if you have not created that file.
         """
@@ -691,14 +691,14 @@ class TwitterBot:
         self._config_dict = load_yaml(config_path)
 
         self._block_list_path = block_list_path
-
         self._block_list = load_yaml(self._block_list_path)
 
         self._white_list_path = white_list_path
-
         self._white_list = load_yaml(self._white_list_path)
 
         self._filtering_rule = self._config_dict["filtering_rule"]
+
+        self._backup_log_path = backup_log_path
 
         try:
             self._load_cookies()
@@ -824,7 +824,7 @@ class TwitterBot:
         display_msg("unblock")
         print(r.status_code, r.text)
 
-    def judge_users(self, users):
+    def judge_users(self, users, block=False):
         """
         Examine users coming from the notifications one by one.
         Block bad users. Update the local block list.
@@ -832,6 +832,7 @@ class TwitterBot:
 
         # ignore user already in block_list or white_list
         sorted_users = {user_id: users[user_id] for user_id in users if (user_id not in self._block_list) and (user_id not in self._white_list)}
+        users_judgements = dict()
 
         for user_id in sorted_users:
             user = sorted_users[user_id]
@@ -840,7 +841,7 @@ class TwitterBot:
 
             conclusion_str = "bad" if is_bad else "good"
 
-            if is_bad:
+            if is_bad and block:
                 self.block_user(user_id)
 
                 self._block_list[user.user_id] = user.screen_name
@@ -849,6 +850,8 @@ class TwitterBot:
             print(
                 f"ORACLE TIME!: id {user.user_id:<25} name {user.screen_name:<16} followers_count {user.followers_count:<10} days_since_reg {user.days_since_registration:<5} is {conclusion_str}"
             )
+            users_judgements[user_id]=conclusion_str
+        return users_judgements
 
     def check_notifications(self, block=True):
         """
@@ -895,7 +898,6 @@ class TwitterBot:
                     favourites_count=user.favourites_count,
                     display_name=user.name,
                 )
-                # print(dataclasses.asdict(p))
                 logged_users[p.user_id] = p
 
         # display_msg("globalObjects['tweets]")
@@ -910,7 +912,7 @@ class TwitterBot:
                 # print(tweet.user_id, tweet.created_at, tweet.full_text)
 
         interacting_users = {}
-        entryid_notification_users = {}
+        notification_id_to_user_id = {}
 
         display_msg("globalObjects['notifications']")
         if result.globalObjects.notifications:
@@ -922,7 +924,7 @@ class TwitterBot:
                 for e in notification.message.entities:
                     entry_user_id = int(e.ref.user.id)
                     # add the users appearing in notifications (do not include replies)
-                    entryid_notification_users[notification.id] = entry_user_id
+                    notification_id_to_user_id[notification.id] = entry_user_id
 
         display_msg("timeline")
         print("TIMELINE ID", result.timeline.id)
@@ -955,7 +957,7 @@ class TwitterBot:
                 "generic_abuse_report_actioned_with_count",
             ]:
                 entry_id = entry.entryId[13:]
-                entry_user_id = entryid_notification_users[entry_id]
+                entry_user_id = notification_id_to_user_id[entry_id]
                 print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
                 interacting_users[entry_id] = {
                     "sort_index": entry.sortIndex,
@@ -1002,8 +1004,18 @@ class TwitterBot:
 
                 self.update_local_cursor(cursor.value)
                 # self.update_remote_latest_cursor()  # will cause the badge to disappear
-        if block:
-            self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users})
+
+        users_judgements = self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users}, block = block)
+
+        backup_events = dict()
+        if self._backup_log_path is not None:
+            for entry_id in interacting_users:
+                #print(interacting_users[entry_id])
+                event_time = datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"])//1000).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                user_dict =  dataclasses.asdict(interacting_users[entry_id]["user"])
+                backup_events[event_time] = {"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']}
+            if len(backup_events)>0:
+                save_yaml(backup_events,self._backup_log_path,'a')
 
     @staticmethod
     def _cursor_from_entries(entries):
@@ -1415,7 +1427,7 @@ class TwitterBot:
     def search_timeline(query):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         display_msg("search (login free)")
-        
+
         #url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
         url = "https://twitter.com/i/api/graphql/WeHGEHYtJA0sfOOFIBMt8g/SearchTimeline"
 
