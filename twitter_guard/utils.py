@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 import snscrape.modules.twitter as sntwitter
 import re
 
+import pytz
+
 def display_msg(msg):
     print(f"\n{msg:.>50}")
 
@@ -42,6 +44,45 @@ def tweet_timestamp_from_sns_timestamp(sns_timestamp):
 
 def sns_timestamp_from_tweet_timestamp(tweet_timestamp):
     return tweet_timestamp_to_utc_datetime(tweet_timestamp).replace(tzinfo=timezone.utc).isoformat()
+ 
+def get_tznames(timestamp, offset_hours):
+    """
+    get the names of timezones that at the time of the timestamp, have a time difference from GMT 00:00 as specified.
+
+    Parameters:
+    timestamp : could be an integer utctimestamp, or a datetime object.
+    offset_hours: could be integer or non-integer.
+
+    Returns:
+    list: a list of timezones with the given offset
+    """
+    #use mod to convert negative offset to positive ones used by the library
+    offset_seconds = int(3600 * offset_hours)%(3600*24) 
+    if not isinstance(timestamp, datetime):
+        if isinstance(timestamp,int):
+            timestamp = datetime.utcfromtimestamp(timestamp) 
+
+    return [x for x in pytz.common_timezones if pytz.timezone(x).utcoffset(timestamp).seconds == offset_seconds]
+
+def get_weekday(timestamp, utc_offset = None, tz = None):
+    """
+    get the weekday at the specified time and timezone.
+
+    Parameters:
+    timestamp : could be an integer utctimestamp, or a datetime object.
+    utc_offset: could be integer or non-integer.
+
+    Returns:
+    weekday (int): the weekday, using a coding scheme that starts from 0: Monday = 0, Tuesday = 1, ... and so on.
+    """
+    if tz is None:
+        specific_tz = pytz.timezone(get_tznames(timestamp, utc_offset)[0])
+    else:
+        specific_tz = pytz.timezone(tz)
+    if not isinstance(timestamp, datetime):
+        timestamp = datetime.utcfromtimestamp(timestamp)
+    weekday = timestamp.replace(tzinfo=timezone.utc).astimezone(specific_tz).weekday()
+    return weekday
 
 
 def get_source_label(s):
@@ -66,14 +107,26 @@ def numerical_id(user_id):
 
     return int_user_id
 
-def hourly_from_timestamps(timestamps):
+def hour_hist_from_timestamps(timestamps):
+    """
+    Returns:
+
+    a 24-element list that counts occurences of each hour in the utc timestamps. 
+    """
     SECONDS_PER_HOUR = 3600
     SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
     hours = [x % SECONDS_PER_DAY // SECONDS_PER_HOUR for x in timestamps]
-    hourly = [0]*24
+    hist = [0]*24
     for x in hours:
-        hourly[x]+=1
-    return hourly
+        hist[x]+=1
+    return hist
+
+def weekday_hist_from_timestamps(timestamps, utc_offset = None, tz = None):
+    weekdays = [get_weekday(x, utc_offset = utc_offset, tz=tz) for x in timestamps]
+    hist = [0]*7
+    for x in weekdays:
+        hist[x]+=1
+    return hist
 
 def plot_utc_timestamps_by_hour(timestamps):
     """

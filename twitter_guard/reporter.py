@@ -240,7 +240,7 @@ class ReportHandler:
         old_screen_name = match.group(1)
         s = s.replace(old_screen_name, screen_name)
         """
-        
+
         form["input_flow_data"]["requested_variant"] = s
         form["input_flow_data"]["flow_context"]["start_location"]["profile"]["profile_id"] = str(user_id)
         return form
@@ -248,7 +248,7 @@ class ReportHandler:
     def _prepare_report_tweet_form(self, screen_name, user_id, tweet_id):
         form = copy.deepcopy(ReportHandler.report_get_token_payload)
         form["input_flow_data"] = copy.deepcopy(ReportHandler.report_tweet_get_token_input_flow_data)
-        
+
         s = form["input_flow_data"]["requested_variant"]
         s_json = json.loads(s)
         s_json["report_flow_id"]=gen_report_flow_id()
@@ -256,11 +256,11 @@ class ReportHandler:
         s_json["reported_tweet_id"]=str(tweet_id)
         s_json["client_referer"]=f"/{screen_name}/status/{tweet_id}"
         s = json.dumps(s_json)
-        
+
         form["input_flow_data"]["requested_variant"] = s
         form["input_flow_data"]["flow_context"]["start_location"]["tweet"]["tweet_id"] = str(tweet_id)
-    
-        return form        
+
+        return form
 
     def _get_flow_token(self, report_type, screen_name = None, user_id = None, tweet_id = None):
         # if user id is not provided
@@ -274,12 +274,12 @@ class ReportHandler:
             content = json.loads(list(x.get_items())[0].json())
             user_id = content["user"]["id"]
             screen_name = content["user"]["username"]
-           
+ 
         if report_type==_ReportType.PROFILE or report_type==_ReportType.PROFILE.value:
             form = self._prepare_report_profile_form(screen_name, user_id)
         if report_type==_ReportType.TWEET or report_type==_ReportType.TWEET.value:
             form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)    
-        
+
         r = self._session.post(
             "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
             headers=self._headers,
@@ -288,6 +288,8 @@ class ReportHandler:
 
         if r.status_code == 200:
             self.flow_token = r.json()["flow_token"]
+        return r.status_code
+
 
     def _handle_intro(self):
         intro_payload = ReportHandler.intro_payload
@@ -298,12 +300,18 @@ class ReportHandler:
             headers=self._headers,
             data=json.dumps(intro_payload),
         )
-        response = r.json()
-        self.flow_token = response["flow_token"]
-        print(
-            r.status_code,
-            [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
-        )
+
+        try:
+            response = r.json()
+            self.flow_token = response["flow_token"]
+            print(
+                r.status_code,
+                [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
+            )
+        except:
+            print(r.status_code)
+            print(r.text)
+        return r.status_code
 
     def _handle_choices(self, choices):
         # make choices
@@ -329,16 +337,22 @@ class ReportHandler:
             headers=self._headers,
             data=json.dumps(choices_payload),
             )
-        response = r.json()
-        self.flow_token = response["flow_token"]
 
-        if "choice_selection" in response["subtasks"][0]:
-            print(
-                r.status_code,
-                [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
-            )
+        if r.status_code == 200:
+            response = r.json()
+            self.flow_token = response["flow_token"]
+
+            if "choice_selection" in response["subtasks"][0]:
+                print(
+                    r.status_code,
+                    [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
+                )
+            else:
+                print([s["subtask_id"] for s in response["subtasks"]])
         else:
-            print([s["subtask_id"] for s in response["subtasks"]])
+            print(r.status_code, r.text)
+
+        return r.status_code
 
     def _handle_diagnosis(self):
         diagnosis_payload = ReportHandler.diagnosis_payload
@@ -355,6 +369,8 @@ class ReportHandler:
             self.flow_token = response["flow_token"]
         else:
             print(r.status_code, "validation click failed")
+
+        return r.status_code
 
     def _handle_review_and_submit(self, context_text):
         review_submit_payload = ReportHandler.review_submit_payload
@@ -375,6 +391,7 @@ class ReportHandler:
             print(r.status_code, "submit failed")
             print(review_submit_payload)
             print(r.text)
+        return r.status_code
 
     def _handle_completion(self):
         completion_payload = ReportHandler.completion_payload
@@ -391,6 +408,7 @@ class ReportHandler:
             print("successfully completed!")
         else:
             print(r.status_code)
+        return r.status_code
 
     def _handle_target(self, target):
 
@@ -416,6 +434,8 @@ class ReportHandler:
         response = r.json()
         self.flow_token = response["flow_token"]
 
+        return r.status_code
+
     def _report(self, option_name, report_type, target=None, user_id=None, screen_name = None, tweet_id=None, context_msg=None):
         """
         Report a single twitter user.
@@ -430,16 +450,21 @@ class ReportHandler:
         print(report_type)
         options = ReportHandler.options[option_name]["options"]
 
-        self._get_flow_token(report_type, screen_name = screen_name, user_id = user_id, tweet_id = tweet_id)
+        if self._get_flow_token(report_type, screen_name = screen_name, user_id = user_id, tweet_id = tweet_id)!=200:
+            return
 
-        self._handle_intro()
+        if self._handle_intro()!=200:
+            return
 
-        self._handle_target(target)
+        if self._handle_target(target)!=200:
+            return
 
         for choice in options:
-            self._handle_choices(choice)
+            if self._handle_choices(choice)!=200:
+                return
 
-        self._handle_diagnosis()
+        if self._handle_diagnosis()!=200:
+            return
 
         if context_msg is not None:
             context_text = context_msg
@@ -447,7 +472,8 @@ class ReportHandler:
             # use default context text of the presets
             context_text = ReportHandler.options[option_name]["context_text"]
 
-        self._handle_review_and_submit(context_text)
+        if self._handle_review_and_submit(context_text)!=200:
+            return
         self._handle_completion()
 
     def report_user(self, option_name, target="Me", user_id=None, screen_name=None, context_msg=None):
@@ -501,15 +527,16 @@ class ReportHandler:
                 sleep(8)
 
 
-    def report_from_search(self, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
+    def report_from_search(self, bot, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
         display_msg("report accounts from search term")
         display_msg(phrase)
         self._target = target
-        x = TwitterBot.search_timeline(phrase)
+        #x = TwitterBot.search_timeline(phrase)
+        x = bot.search_timeline_login_legacy(phrase)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
 
 
-    def report_from_hashtag(self, hashtag, option_name, target="Everyone", context_msg=None,by="tweet", skip_same_user = True):
+    def report_from_hashtag(self, bot, hashtag, option_name, target="Everyone", context_msg=None,by="tweet", skip_same_user = True):
         """
         Report all users tweeting a certain hashtag in the same way.
         
@@ -522,5 +549,6 @@ class ReportHandler:
         display_msg("report accounts from hashtag")
         display_msg("#"+hashtag)
         self._target = target
-        x = TwitterBot.search_timeline("#"+hashtag)
+        #x = TwitterBot.search_timeline("#"+hashtag)
+        x = bot. search_timeline_login_legacy("#"+hashtag)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)

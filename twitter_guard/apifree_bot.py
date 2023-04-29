@@ -30,6 +30,43 @@ import snscrape.modules.twitter as sntwitter
 from collections import abc
 import keyword
 
+from http.client import HTTPConnection
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.ssl_ import create_urllib3_context
+
+def drop_accept_encoding_on_putheader(http_connection_putheader):
+    def wrapper(self, header, *values):
+        if header == "Accept-Encoding" and "identity" in values:
+            return
+        return http_connection_putheader(self, header, *values)
+
+    return wrapper
+
+#this will avoid python automatically add Accept-Encoding: identity
+HTTPConnection.putheader = drop_accept_encoding_on_putheader(HTTPConnection.putheader)
+
+# This is the 2.11 Requests cipher string, containing 3DES.
+CIPHERS = (
+    'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
+    'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
+    '!eNULL:!MD5'
+)
+
+CIPHERS = ("ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384")
+
+class DESAdapter(HTTPAdapter):
+    """
+    A TransportAdapter that re-enables 3DES support in Requests.
+    """
+    def init_poolmanager(self, *args, **kwargs):
+        context = create_urllib3_context(ciphers=CIPHERS)
+        kwargs['ssl_context'] = context
+        return super(DESAdapter, self).init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, *args, **kwargs):
+        context = create_urllib3_context(ciphers=CIPHERS)
+        kwargs['ssl_context'] = context
+        return super(DESAdapter, self).proxy_manager_for(*args, **kwargs)
 
 def display_session_cookies(s):
     display_msg("print cookies")
@@ -547,7 +584,6 @@ class TwitterBot:
         "include_quote_count": "true",
         "include_reply_count": "1",
         "tweet_mode": "extended",
-        "include_ext_collab_control": "true",
         "include_ext_views": "true",
         "include_entities": "true",
         "include_user_entities": "true",
@@ -558,9 +594,16 @@ class TwitterBot:
         "send_error_codes": "true",
         "simple_quoted_tweet": "true",
         "count": "40",
-        "cursor": "DAABDAABCgABAAAAABZfed0IAAIAAAABCAADYinMQAgABFMKJicACwACAAAAC0FZWlhveW1SNnNFCAADjyMIvwAA",
-        "ext": "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe",
+        #"cursor": "DAABDAABCgABAAAAABZfed0IAAIAAAABCAADYinMQAgABFMKJicACwACAAAAC0FZWlhveW1SNnNFCAADjyMIvwAA",
+        "ext": "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,vibe",
     }
+
+    adaptive_search_form = copy.deepcopy(notification_all_form)
+    adaptive_search_form['tweet_search_mode']='live'
+    adaptive_search_form['query_source']='typed_query'
+    adaptive_search_form['include_ext_edit_control']="true"
+    adaptive_search_form['spelling_corrections']="1"
+    adaptive_search_form['pc']="1"
 
     standard_graphql_features = {
         "responsive_web_twitter_blue_verified_badge_is_enabled": True,
@@ -656,9 +699,9 @@ class TwitterBot:
     }
 
     default_headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
         "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Language": "en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3",
         "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
@@ -673,7 +716,8 @@ class TwitterBot:
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
-        "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        #"authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
         "Connection": "keep-alive",
         "TE": "trailers",
     }
@@ -685,6 +729,9 @@ class TwitterBot:
         self._headers = copy.deepcopy(TwitterBot.default_headers)
 
         self._session = requests.Session()
+
+        #experimental
+        self._session.mount('https://twitter.com', DESAdapter())
 
         self._cookie_path = cookie_path
         self._config_path = config_path
@@ -736,6 +783,7 @@ class TwitterBot:
         display_msg("loading cookies")
         cookies = pickle.load(open(self._cookie_path, "rb"))
         self._set_selenium_cookies(cookies)
+        #g_state is not necessary
 
     def refresh_cookies(self):
         """
@@ -1170,6 +1218,8 @@ class TwitterBot:
             r = session.get(url, headers=headers, params=encoded_params)
             #print(r.status_code,r.text)
             if r.status_code != 200:
+                print(r.request.url)
+                print(headers)
                 print(r.status_code, r.text)
                 break
 
@@ -1394,6 +1444,7 @@ class TwitterBot:
     def tmp_session_headers():
         if TwitterBot.tmp_count == 0:
             tmp_session = requests.Session()
+            tmp_session.mount('https://twitter.com', DESAdapter())
 
             tmp_headers = copy.deepcopy(TwitterBot.default_headers)
 
@@ -1437,8 +1488,6 @@ class TwitterBot:
                 "count": 100,
                 "product": "Latest",
                 "querySource": "typed_query",
-                #not sure
-                "tweetSearchMode": "live",
                 },
             'features': TwitterBot.standard_graphql_features,
         }
@@ -1448,6 +1497,125 @@ class TwitterBot:
 
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
             yield from TwitterBot._text_from_entries(entries)
+
+    #TODO: not finished
+    def search_timeline_login_curl(self,query):
+        url = "https://twitter.com/i/api/2/search/adaptive.json"
+        form = copy.deepcopy(TwitterBot.adaptive_search_form)
+
+        form['q']=query
+        form['requestContext']="launch"
+        form["include_ext_profile_image_shape"]="1"
+
+        headers = copy.deepcopy(self._headers)
+        headers["Referer"]="https://twitter.com/search?q="+quote(query.encode("utf-8"))+"&src=typed_query&f=live"
+
+        lang = self._session.cookies['lang']
+        ct0 = self._session.cookies['ct0']
+        _twitter_sess=self._session.cookies['_twitter_sess']
+        kdt=self._session.cookies['kdt']
+        auth_token=self._session.cookies['auth_token']
+        twid=self._session.cookies['twid']
+
+        import subprocess
+        curl_command = f"curl 'https://twitter.com/i/api/2/search/adaptive.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&include_ext_has_nft_avatar=1&include_ext_is_blue_verified=1&include_ext_verified_type=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_ext_alt_text=true&include_ext_limited_action_results=false&include_quote_count=true&include_reply_count=1&tweet_mode=extended&include_ext_views=true&include_entities=true&include_user_entities=true&include_ext_media_color=true&include_ext_media_availability=true&include_ext_sensitive_media_warning=true&include_ext_trusted_friends_metadata=true&send_error_codes=true&simple_quoted_tweet=true&count=100&ext=mediaStats%2ChighlightedLabel%2ChasNftAvatar%2CvoiceInfo%2CbirdwatchPivot%2Cenrichments%2CsuperFollowMetadata%2CunmentionInfo%2CeditControl%2Cvibe&tweet_search_mode=live&query_source=typed_query&include_ext_edit_control=true&spelling_corrections=1&pc=1&q={query}&requestContext=launch&include_ext_profile_image_shape=1'    -H 'accept: */*'   -H 'accept-language: en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3'   -H 'authorization: Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'   -H 'cache-control: no-cache'   -H 'cookie:  lang=en; _twitter_sess={_twitter_sess}; kdt={kdt}; auth_token={auth_token}; ct0={ct0}; twid={twid}'   -H 'pragma: no-cache'   -H 'referer: https://twitter.com/search?q={query}&src=typed_query&f=live'   -H 'sec-fetch-dest: empty'   -H 'sec-fetch-mode: cors'   -H 'sec-fetch-site: same-site'   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0'   -H 'x-csrf-token: {ct0}'   -H 'x-twitter-active-user: yes'   -H 'x-twitter-auth-type: OAuth2Session'   -H 'x-twitter-client-language: en'  -H  'connection: keep-alive' --compressed"
+        p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+        response = json.loads(p)
+
+        response = TwitterJSON(response)
+        print("response (curl)",list(response.globalObjects.tweets)[0])
+
+    def search_timeline_login_legacy(self,query):
+        url = "https://twitter.com/i/api/2/search/adaptive.json"
+
+        headers = copy.deepcopy(self._headers)
+        headers["Referer"]="https://twitter.com/search?q="+quote(query.encode("utf-8"))+"&src=typed_query&f=live"
+        del headers["Host"] #default: api.twitter.com
+
+        form = copy.deepcopy(TwitterBot.adaptive_search_form)
+        form['q']=query
+        form['requestContext']="launch"
+        form["include_ext_profile_image_shape"]="1"
+
+        while True:
+            r = self._session.get(url, headers=headers, params=form)
+            if r.status_code != 200:
+                print(r.status_code, r.text)
+                break
+
+            print('x-rate-limit-remaining',r.headers['x-rate-limit-remaining'])
+            print('until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
+
+            response = r.json()
+            response = TwitterJSON(response)
+
+            objects = response.globalObjects
+            tweets = objects.tweets
+            users = objects.users
+            entries = response.timeline.instructions[0].addEntries.entries
+
+            if len(entries)<=2:
+                break
+
+            for tweet_id in tweets:
+                tweet = tweets[tweet_id]
+                tweet_type = TwitterBot._tweet_type(tweet.in_reply_to_screen_name, tweet.is_quote_status, tweet.retweeted)
+                user_id = tweet.user_id
+
+                user = users[str(user_id)]
+
+                p = TwitterUserProfile(
+                    user.id,
+                    user.screen_name,
+                    created_at=sns_timestamp_from_tweet_timestamp(user.created_at),
+                    following_count=user.friends_count,
+                    followers_count=user.followers_count,
+                    tweet_count=user.statuses_count,
+                    media_count=user.media_count,
+                    favourites_count=user.favourites_count,
+                    display_name=user.name,
+                )
+
+                tweet = Tweet(
+                    int(tweet_id),
+                    tweet_type=tweet_type,
+                    created_at=sns_timestamp_from_tweet_timestamp(tweet.created_at),
+                    source=tweet.source,
+                    text=tweet.full_text,
+                    lang = tweet.lang,
+                    view_count = tweet.ext_views.count,
+                    favorite_count = tweet.favorite_count,
+                    reply_count = tweet.reply_count,
+                    retweet_count = tweet.retweet_count,
+                    quote_count = tweet.quote_count,
+                    hashtags = [x['text'] for x in tweet.entities.hashtags],
+                    user = p
+                )
+                if not ( ("advertiser-interface" in tweet.source)  or ("Twitter for Advertisers" in tweet.source)):
+                    yield tweet
+            bottom_entries = [e for e in entries if 'cursor-bottom' in e.entryId]
+            replace_instructions = [x for x in response.timeline.instructions if x.replaceEntry is not None]
+
+            if len(bottom_entries)>0:
+                bottom_cursor = [e for e in entries if 'cursor-bottom' in e.entryId][0].content.operation.cursor.value
+            elif len(replace_instructions)>0:
+                bottom_cursor = [x.replaceEntry.entry for x in replace_instructions if 'cursor-bottom' in x.replaceEntry.entryIdToReplace][0].content.operation.cursor.value
+
+            form['cursor']=bottom_cursor
+
+            if r.headers['x-rate-limit-remaining'] == 0:
+                print("rate limit reached")
+                break
+
+        #import subprocess
+        #curl_command = f"curl 'https://twitter.com/i/api/2/search/adaptive.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&include_ext_has_nft_avatar=1&include_ext_is_blue_verified=1&include_ext_verified_type=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_ext_alt_text=true&include_ext_limited_action_results=false&include_quote_count=true&include_reply_count=1&tweet_mode=extended&include_ext_views=true&include_entities=true&include_user_entities=true&include_ext_media_color=true&include_ext_media_availability=true&include_ext_sensitive_media_warning=true&include_ext_trusted_friends_metadata=true&send_error_codes=true&simple_quoted_tweet=true&count=100&ext=mediaStats%2ChighlightedLabel%2ChasNftAvatar%2CvoiceInfo%2CbirdwatchPivot%2Cenrichments%2CsuperFollowMetadata%2CunmentionInfo%2CeditControl%2Cvibe&tweet_search_mode=live&query_source=typed_query&include_ext_edit_control=true&spelling_corrections=1&pc=1&q={query}&requestContext=launch&include_ext_profile_image_shape=1'    -H 'accept: */*'   -H 'accept-language: en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3'   -H 'authorization: Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'   -H 'cache-control: no-cache'   -H 'cookie:  lang=en; _twitter_sess={_twitter_sess}; kdt={kdt}; auth_token={auth_token}; ct0={ct0}; twid={twid}'   -H 'pragma: no-cache'   -H 'referer: https://twitter.com/search?q={query}&src=typed_query&f=live'   -H 'sec-fetch-dest: empty'   -H 'sec-fetch-mode: cors'   -H 'sec-fetch-site: same-site'   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0'   -H 'x-csrf-token: {ct0}'   -H 'x-twitter-active-user: yes'   -H 'x-twitter-auth-type: OAuth2Session'   -H 'x-twitter-client-language: en'  -H  'connection: keep-alive' --compressed"
+        #p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+        #response = json.loads(p)
+        #print("\nurl:::",r.url)
+        #print("\nheaders:::",r.request.headers)
+        #print("\nresponse headers:::", r.headers)
+        #print('until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
+        #print("\nresult:::",r.status_code, r.text)
 
     @staticmethod
     def tweet_detail(tweet_id):

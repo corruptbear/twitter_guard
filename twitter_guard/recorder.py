@@ -60,11 +60,12 @@ class Recorder:
 
         # self._cursor.execute(drop_suspended_column_sql)
 
-    def record(self, query):
+    def record(self, bot, query):
         """
         Collect results incrementally
         """
-        results = TwitterBot.search_timeline(query)
+        #results = TwitterBot.search_timeline(query)
+        results = bot.search_timeline_login_legacy(query)
 
         self._cursor.execute("SELECT rowid, latest_result_date from queries WHERE query = (?)", (query,))
         self.conn.commit()
