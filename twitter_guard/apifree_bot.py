@@ -25,8 +25,6 @@ from .rule_parser import rule_eval
 #from .reporter import ReportHandler
 from time import sleep
 
-import snscrape.modules.twitter as sntwitter
-
 from collections import abc
 import keyword
 
@@ -197,6 +195,7 @@ class Tweet:
     text: str = dataclasses.field(default=None)
     lang: str = dataclasses.field(default=None)
     hashtags: list = dataclasses.field(default=None)
+    user_mentions: list = dataclasses.field(default=None)
     
     view_count : int = dataclasses.field(default=None)
     reply_count : int = dataclasses.field(default=None)
@@ -718,6 +717,7 @@ class TwitterBot:
         "Sec-Fetch-Site": "same-site",
         #"authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
         "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        #"authorization": "Bearer AAAAAAAAAAAAAAAAAAAAAPYXBAAAAAAACLXUNDekMxqa8h%2F40K4moUkGsoc%3DTYfbDKbT3jJPCEVnMYqilB28NHfOPqkca3qaAxGfsyKCs0wRbw",
         "Connection": "keep-alive",
         "TE": "trailers",
     }
@@ -758,6 +758,7 @@ class TwitterBot:
 
         # when disabled, will use the default cursor
         self._load_cursor()
+        self._select_search_method()
 
         #self.reporter = ReportHandler(self._headers, self._session)
 
@@ -809,6 +810,17 @@ class TwitterBot:
 
             self._set_selenium_cookies(b.driver.get_cookies())
 
+    def _select_search_method(self):
+        try:
+            for x in self.search_timeline_graphql("world"):
+                tmp = x.user
+                self.search_timeline = self.search_timeline_graphql
+                print("graphql search selected")
+                break
+        except:
+            self.search_timeline = self.search_timeline_login_legacy
+            print("legacy search selected")
+
     def get_badge_count(self):
         display_msg("get badge count")
 
@@ -819,7 +831,7 @@ class TwitterBot:
         result = None
         if r.status_code == 200:
             result = r.json()
-        print(r.status_code, result)
+        print(r.status_code, r.text)
         return r.status_code, result
 
     def update_local_cursor(self, val):
@@ -1157,6 +1169,7 @@ class TwitterBot:
             retweet_count = result.legacy.retweet_count,
             quote_count = result.legacy.quote_count,
             hashtags = [x['text'] for x in result.legacy.entities.hashtags],
+            user_mentions = [TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
             user = user
         )
         #TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
@@ -1475,7 +1488,7 @@ class TwitterBot:
 
        
     @staticmethod
-    def search_timeline(query):
+    def search_timeline_graphql(query):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         display_msg("search (login free)")
 
@@ -1534,7 +1547,7 @@ class TwitterBot:
 
         form = copy.deepcopy(TwitterBot.adaptive_search_form)
         form['q']=query
-        form['requestContext']="launch"
+        #form['requestContext']="launch"
         form["include_ext_profile_image_shape"]="1"
 
         while True:
@@ -1542,9 +1555,11 @@ class TwitterBot:
             if r.status_code != 200:
                 print(r.status_code, r.text)
                 break
+            #print(r.text)
 
-            print('x-rate-limit-remaining',r.headers['x-rate-limit-remaining'])
-            print('until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
+            print('x-rate-limit-remaining',r.headers['x-rate-limit-remaining'],'until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
+            if int(r.headers['x-rate-limit-remaining']) == 0:
+                sleep(int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()+1)
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1589,6 +1604,7 @@ class TwitterBot:
                     retweet_count = tweet.retweet_count,
                     quote_count = tweet.quote_count,
                     hashtags = [x['text'] for x in tweet.entities.hashtags],
+                    user_mentions = [TwitterUserProfile(x.id, x.screen_name) for x in tweet.entities.user_mentions],
                     user = p
                 )
                 if not ( ("advertiser-interface" in tweet.source)  or ("Twitter for Advertisers" in tweet.source)):
@@ -1600,6 +1616,8 @@ class TwitterBot:
                 bottom_cursor = [e for e in entries if 'cursor-bottom' in e.entryId][0].content.operation.cursor.value
             elif len(replace_instructions)>0:
                 bottom_cursor = [x.replaceEntry.entry for x in replace_instructions if 'cursor-bottom' in x.replaceEntry.entryIdToReplace][0].content.operation.cursor.value
+            else:
+                bottom_cursor= [e for e in entries if e.content.operation is not None and e.content.operation.cursor.cursorType=="Bottom"][0].content.operation.cursor.value
 
             form['cursor']=bottom_cursor
 
@@ -1608,14 +1626,11 @@ class TwitterBot:
                 break
 
         #import subprocess
-        #curl_command = f"curl 'https://twitter.com/i/api/2/search/adaptive.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&include_ext_has_nft_avatar=1&include_ext_is_blue_verified=1&include_ext_verified_type=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_ext_alt_text=true&include_ext_limited_action_results=false&include_quote_count=true&include_reply_count=1&tweet_mode=extended&include_ext_views=true&include_entities=true&include_user_entities=true&include_ext_media_color=true&include_ext_media_availability=true&include_ext_sensitive_media_warning=true&include_ext_trusted_friends_metadata=true&send_error_codes=true&simple_quoted_tweet=true&count=100&ext=mediaStats%2ChighlightedLabel%2ChasNftAvatar%2CvoiceInfo%2CbirdwatchPivot%2Cenrichments%2CsuperFollowMetadata%2CunmentionInfo%2CeditControl%2Cvibe&tweet_search_mode=live&query_source=typed_query&include_ext_edit_control=true&spelling_corrections=1&pc=1&q={query}&requestContext=launch&include_ext_profile_image_shape=1'    -H 'accept: */*'   -H 'accept-language: en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3'   -H 'authorization: Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'   -H 'cache-control: no-cache'   -H 'cookie:  lang=en; _twitter_sess={_twitter_sess}; kdt={kdt}; auth_token={auth_token}; ct0={ct0}; twid={twid}'   -H 'pragma: no-cache'   -H 'referer: https://twitter.com/search?q={query}&src=typed_query&f=live'   -H 'sec-fetch-dest: empty'   -H 'sec-fetch-mode: cors'   -H 'sec-fetch-site: same-site'   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0'   -H 'x-csrf-token: {ct0}'   -H 'x-twitter-active-user: yes'   -H 'x-twitter-auth-type: OAuth2Session'   -H 'x-twitter-client-language: en'  -H  'connection: keep-alive' --compressed"
         #p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
         #response = json.loads(p)
         #print("\nurl:::",r.url)
         #print("\nheaders:::",r.request.headers)
         #print("\nresponse headers:::", r.headers)
-        #print('until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
-        #print("\nresult:::",r.status_code, r.text)
 
     @staticmethod
     def tweet_detail(tweet_id):

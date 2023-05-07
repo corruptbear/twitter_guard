@@ -14,7 +14,7 @@ A Python package for defending against harassment on Twitter.
 Install directly from github
 ```bash
 #if you are using python3.9, for example
-python3.9 -m pip install --user git+https://github.com/wsluo/twitter_guard
+python3.9 -m pip install --user git+https://github.com/corruptbear/twitter_guard
 ```  
 
 ## Configuration

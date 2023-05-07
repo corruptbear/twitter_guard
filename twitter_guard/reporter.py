@@ -532,7 +532,7 @@ class ReportHandler:
         display_msg(phrase)
         self._target = target
         #x = TwitterBot.search_timeline(phrase)
-        x = bot.search_timeline_login_legacy(phrase)
+        x = bot.search_timeline(phrase)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
 
 
@@ -550,5 +550,5 @@ class ReportHandler:
         display_msg("#"+hashtag)
         self._target = target
         #x = TwitterBot.search_timeline("#"+hashtag)
-        x = bot. search_timeline_login_legacy("#"+hashtag)
+        x = bot. search_timeline("#"+hashtag)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)

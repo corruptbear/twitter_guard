@@ -65,7 +65,7 @@ class Recorder:
         Collect results incrementally
         """
         #results = TwitterBot.search_timeline(query)
-        results = bot.search_timeline_login_legacy(query)
+        results = bot.search_timeline(query)
 
         self._cursor.execute("SELECT rowid, latest_result_date from queries WHERE query = (?)", (query,))
         self.conn.commit()
@@ -183,24 +183,26 @@ class Recorder:
         print(f"{screen_name} deleted from the tables!")
         self.conn.commit()
 
+    def display_fetch(self):
+        for x in self._cursor.fetchall():
+            print(dict(x))
+
     def show_suspended_users(self):
         # all suspended
         self._cursor.execute(
             "SELECT users.screen_name, users.tweet_count, users.created_at as user_created_at, posts.created_at as last_seen_at FROM posts JOIN users ON (posts.post_id = users.last_seen_post_id) WHERE users.account_status='suspended' ORDER BY posts.created_at"
         )
-        for x in self._cursor.fetchall():
-            print(dict(x))
+        self.display_fetch()
 
     def check(self):
         self._cursor.execute("SELECT * from queries")
-        for x in self._cursor.fetchall():
-            print(dict(x))
+        self.display_fetch()
 
         self._cursor.execute("SELECT * from users ORDER BY screen_name")
-        for x in self._cursor.fetchall():
-            print(dict(x))
+        self.display_fetch()
 
-        # self._cursor.execute("SELECT * FROM posts")
+        self._cursor.execute("SELECT DISTINCT content FROM posts")
+        self.display_fetch()
         # self._cursor.execute("SELECT * FROM posts WHERE created_at BETWEEN '2023-01-01' AND '2023-03-01'")
         # self._cursor.execute("SELECT * FROM posts JOIN users ON (posts.account_id=users.user_id) WHERE source NOT LIKE '%Twitter Web App%' AND users.account_status!='suspended'")
         # self._cursor.execute("SELECT posts.post_id, posts.created_at as post_created_at, posts.source, posts.content as post_content, users.screen_name, users.user_id, users.created_at as user_created_at, users.account_status FROM posts JOIN users ON (posts.account_id=users.user_id) WHERE source LIKE '%easestrategy%'")
@@ -213,20 +215,18 @@ class Recorder:
             "SELECT users.user_id, users.screen_name, posts.created_at as post_created_at,  posts.source, posts.content FROM (users JOIN posts ON users.user_id = posts.account_id) WHERE users.screen_name=? ORDER BY posts.created_at",
             (screen_name,),
         )
-        for x in self._cursor.fetchall():
-            print(dict(x))
+        self.display_fetch()
 
     def check_status(self):
         display_msg("check status now")
-        self._cursor.execute("SELECT COUNT(*) from users")
+        self._cursor.execute("SELECT account_status, COUNT(*) from users GROUP BY account_status")
         for x in self._cursor.fetchall():
             print("all users:", dict(x))
-        self._cursor.execute("SELECT COUNT(*) from users WHERE users.account_status='suspended'")
-        for x in self._cursor.fetchall():
-            print("suspended users:", dict(x))
         self._cursor.execute("SELECT COUNT(*) from posts")
         for x in self._cursor.fetchall():
             print("all posts:", dict(x))
+        self._cursor.execute("SELECT query, COUNT(*) from posts GROUP BY query")
+        self.display_fetch()
 
         # self._cursor.execute(
         #    "UPDATE users SET account_status='suspended' WHERE users.suspended=1"

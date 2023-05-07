@@ -86,6 +86,9 @@ def get_weekday(timestamp, utc_offset = None, tz = None):
 
 
 def get_source_label(s):
+    """
+    Parses the source field and get the label
+    """
     #s = '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>'
     match = re.search(r">(.*)</a>", s)
     return match.group(1)
