@@ -20,6 +20,12 @@ python3.9 -m pip install --user git+https://github.com/corruptbear/twitter_guard
 ## Configuration
 To use the package, create `apifree.yaml`, `white_list.yaml` and `block_list.yaml` in the folder where your own script resides.
 
+```bash
+touch apifree.yaml
+touch white_list.yaml
+touch block_list.yaml
+```
+
 `apifree.yaml`
 
 Before first time use,  set `latest_cursor` field as `""`.
