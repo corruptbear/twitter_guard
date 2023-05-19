@@ -23,6 +23,10 @@ class ReportOption:
     InsultingOption = "InsultingOption"
     WishingHarmOption = "WishingHarmOption"
 
+    PostingPrivateInfoOption = "PostingPrivateInfoOption"
+    PrivateInfoContactInfoOption = "PrivateInfoContactInfoOption"
+    OtherOption = "OtherOption"
+
     GeneralMisinformationPoliticsOption = "GeneralMisinformationPoliticsOption"
     GeneralMisinformationPoliticsOtherOption = "GeneralMisinformationPoliticsOtherOption"
 
@@ -174,7 +178,7 @@ class ReportHandler:
             }
         ]
     }
-
+    #TODO: handle from profile or from tweet
     options = {
         "Spam": {
             "options":[[ReportOption.SpammedOption],[ReportOption.LikeRetweetReplySpamOption]],
@@ -194,6 +198,11 @@ class ReportHandler:
         "SexualHarassment":{
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], [ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]],
             "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
+        },
+
+        "PostingPrivateInfo":{
+            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.PostingPrivateInfoOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption]]
+            
         },
 
         "WishingHarm":{
