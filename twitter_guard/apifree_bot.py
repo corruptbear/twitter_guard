@@ -4,6 +4,7 @@ import traceback
 
 import requests
 from urllib.parse import urlencode, quote
+import http.cookiejar
 
 import dataclasses
 
@@ -725,6 +726,13 @@ class TwitterBot:
     def __init__(self, cookie_path=None, config_path=None, white_list_path=None, block_list_path=None, backup_log_path=None):
         """
         In order to save the list of newly blocked accounts, the block_list_path should be specified, even if you have not created that file.
+
+        Parameters:
+        cookie_path (str): the path of a python pickle file or a Netscape HTTP Cookie File in txt format of the requests session cookie. (mandatory)
+        config_path (str): the path of the config file which contains login info and the filter setting. (optional)
+        white_list_path (str): the path of the white list yaml file. (optional)
+        block_list_path (str): the path of the black list yaml file. (optional) when not provided, the blocked id will not be saved.
+        backup_log_path (str): the path to the notification log file. (optional) when not provided, the parsed interactions from notifications will not be saved.
         """
         self._headers = copy.deepcopy(TwitterBot.default_headers)
 
@@ -743,7 +751,10 @@ class TwitterBot:
         self._white_list_path = white_list_path
         self._white_list = load_yaml(self._white_list_path)
 
-        self._filtering_rule = self._config_dict["filtering_rule"]
+        if "filtering_rule" in self._config_dict:
+            self._filtering_rule = self._config_dict["filtering_rule"]
+        else:
+            self._filtering_rule = None
 
         self._backup_log_path = backup_log_path
 
@@ -757,7 +768,9 @@ class TwitterBot:
         # display_session_cookies(self._session)
 
         # when disabled, will use the default cursor
-        self._load_cursor()
+        if "latest_cursor" in self._config_dict:
+            self._load_cursor()
+
         self._select_search_method()
 
         #self.reporter = ReportHandler(self._headers, self._session)
@@ -781,16 +794,28 @@ class TwitterBot:
         self._headers["x-csrf-token"] = self._session.cookies.get("ct0")
 
     def _load_cookies(self):
-        display_msg("loading cookies")
-        cookies = pickle.load(open(self._cookie_path, "rb"))
-        self._set_selenium_cookies(cookies)
+        if self._cookie_path.endswith('.pkl'):
+            display_msg("loading cookies")
+            cookies = pickle.load(open(self._cookie_path, "rb"))
+            self._set_selenium_cookies(cookies)
+        elif self._cookie_path.endswith('.txt'):
+            self.set_cookies_from_netscape_txt(self._cookie_path)
         #g_state is not necessary
+
+    def set_cookies_from_netscape_txt(self, cookie_path):
+        cj = http.cookiejar.MozillaCookieJar(cookie_path)
+        cj.load()
+        self._session.cookies.update(cj)
+        self._headers["x-csrf-token"] = self._session.cookies.get("ct0")
 
     def refresh_cookies(self):
         """
         Try to get the cookies through requests only TwitterLoginBot first.
         If it does not work, use SeleniumTwitterBot to get the cookies
         """
+        if not self._cookie_path.endswith(".pkl"):
+            self._cookie_path = os.path.join(os.path.dirname(self._cookie_path),"sl_cookies.pkl")
+
         try:
             display_msg("trying using requests to get cookies")
             b = TwitterLoginBot(

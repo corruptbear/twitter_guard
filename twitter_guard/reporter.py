@@ -447,12 +447,14 @@ class ReportHandler:
 
     def _report(self, option_name, report_type, target=None, user_id=None, screen_name = None, tweet_id=None, context_msg=None):
         """
-        Report a single twitter user.
+        Report a single twitter profile or tweet.
         
         Parameters:
-        screen_name (str): the twitter handle of the user to be reported.
         option_name (str): a short string specifying the reporting options.
+        report_type (_ReportType): either _ReportType.PROFILE or _ReportType.TWEET
         user_id (int): the numeric twitter id associated with screen_name.
+        screen_name (str): the twitter handle of the user to be reported. Mandatory for reporting a profile.
+        tweet_id (int): the id of the tweet to be reported.  Mandatory for reporting a tweet.
         context_msg (str): additional context message.
         """
 
@@ -537,6 +539,17 @@ class ReportHandler:
 
 
     def report_from_search(self, bot, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
+        """
+        Report all users from tweet search result in the same way.
+
+        Parameters:
+        hashtag (str): the hashtag to be reported, not including the '#' symbol.
+        option_name (str): a short string specifying the reporting options.
+        target (str): who is the report for. Default to 'Everyone'.
+        context_msg (str): additional context message.
+        by (str): either 'tweet' or 'user'. Choosing between profile reporting and tweet reporting. Default to 'tweet'.
+        skip_same_user (Boolean): True, report the same author once; False, report the same author everytime.
+        """
         display_msg("report accounts from search term")
         display_msg(phrase)
         self._target = target
@@ -554,10 +567,12 @@ class ReportHandler:
         option_name (str): a short string specifying the reporting options.
         target (str): who is the report for. Default to 'Everyone'.
         context_msg (str): additional context message.
+        by (str): either 'tweet' or 'user'. Choosing between profile reporting and tweet reporting.
+        skip_same_user (Boolean): True, report the same author once; False, report the same author everytime.
         """
         display_msg("report accounts from hashtag")
         display_msg("#"+hashtag)
         self._target = target
         #x = TwitterBot.search_timeline("#"+hashtag)
-        x = bot. search_timeline("#"+hashtag)
+        x = bot.search_timeline("#"+hashtag)
         self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)

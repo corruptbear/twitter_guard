@@ -14,9 +14,11 @@ def display_msg(msg):
 
 
 def save_yaml(dictionary, filepath, write_mode):
-    with open(filepath, write_mode) as f:
-        yaml.dump(dictionary, f)
-
+    try:
+        with open(filepath, write_mode) as f:
+            yaml.dump(dictionary, f)
+    except:
+        traceback.print_exc()
 
 def load_yaml(filepath):
     """
@@ -136,7 +138,7 @@ def plot_utc_timestamps_by_hour(timestamps):
     Plot the hourly histogram of the timestamps.
     The timestamps are in utc timestamp format.
     """
-    hourly = hourly_from_timestamps(timestamps)
+    hourly = hour_hist_from_timestamps(timestamps)
     # Create bar plot
     plt.bar(range(24),hourly)
     #plt.hist(hours, bins=[x for x in range(25)], density=True)

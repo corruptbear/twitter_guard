@@ -21,9 +21,7 @@ python3.9 -m pip install --user git+https://github.com/corruptbear/twitter_guard
 To use the package, create `apifree.yaml`, `white_list.yaml` and `block_list.yaml` in the folder where your own script resides.
 
 ```bash
-touch apifree.yaml
-touch white_list.yaml
-touch block_list.yaml
+touch apifree.yaml && touch white_list.yaml && touch block_list.yaml
 ```
 
 `apifree.yaml`
@@ -61,13 +59,14 @@ from twitter_guard.apifree_bot import TwitterBot
 #specify the paths of configs and cookies
 pwd = os.path.dirname(os.path.realpath(__file__))
 COOKIE_PATH = os.path.join(pwd, "sl_cookies.pkl")
-CONFIG_PATH = os.path.join(pwd, "apifree.yaml")
-WHITE_LIST_PATH = os.path.join(pwd, "white_list.yaml")
-BLOCK_LIST_PATH = os.path.join(pwd, "block_list.yaml")
+#COOKIE_PATH = os.path.join(pwd,'twitter.com_cookies.txt')#alternatively using Netscape cookie file
+CONFIG_PATH = os.path.join(pwd, "apifree.yaml")#optional, if the cookie is not valid, then you will need the credentials in the config file
+WHITE_LIST_PATH = os.path.join(pwd, "white_list.yaml")#optional
+BLOCK_LIST_PATH = os.path.join(pwd, "block_list.yaml")#optional
 
 #create the bot
 bot = TwitterBot(
-    cookie_path=COOKIE_PATH,
+    cookie_path=COOKIE_PATH,#absolutely mandatory
     config_path=CONFIG_PATH,
     white_list_path=WHITE_LIST_PATH,
     block_list_path=BLOCK_LIST_PATH,
@@ -77,6 +76,7 @@ try:
     # use a small query to test the validity of cookies
     bot.get_badge_count()
 except:
+	#in order to refresh cookies, you have to supply valid credentials in the config
     bot.refresh_cookies()
 
 #examing recent interactions, and block users according to the filtering_rule defined in apifree.yaml
