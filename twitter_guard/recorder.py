@@ -171,7 +171,7 @@ class Recorder:
 
     def delete_user(self, screen_name):
         # delete associated posts first
-        account_id = id_from_screen_name(screen_name)
+        account_id = TwitterBot.id_from_screen_name(screen_name)
         self._cursor.execute(
             "DELETE from posts where account_id in (SELECT account_id FROM posts JOIN users ON (posts.account_id=users.user_id) WHERE users.screen_name=?)",
             (screen_name,),

@@ -5,7 +5,6 @@ from enum import Enum
 from time import sleep
 import copy
 from .utils import *
-import snscrape.modules.twitter as sntwitter
 from .apifree_bot import TwitterBot
 
 class _ReportType(Enum):
@@ -275,15 +274,13 @@ class ReportHandler:
         # if user id is not provided
         if screen_name is not None and user_id is None:
             print("query to get user id...")
-            user_id = id_from_screen_name(screen_name)
+            user_id = TwitterBot.id_from_screen_name(screen_name)
         # if only tweet_id is available
         if screen_name is None and user_id is None and tweet_id is not None:
             print("getting info from tweet...")
-            x = sntwitter.TwitterTweetScraper(tweet_id)
-            content = json.loads(list(x.get_items())[0].json())
-            user_id = content["user"]["id"]
-            screen_name = content["user"]["username"]
- 
+            tweet = next(TwitterBot.tweet_detail(tweet_id))
+            user_id = tweet.user.user_id
+            screen_name = tweet.user.screen_name
         if report_type==_ReportType.PROFILE or report_type==_ReportType.PROFILE.value:
             form = self._prepare_report_profile_form(screen_name, user_id)
         if report_type==_ReportType.TWEET or report_type==_ReportType.TWEET.value:

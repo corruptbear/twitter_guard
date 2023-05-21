@@ -72,6 +72,13 @@ def display_session_cookies(s):
     for x in s.cookies:
         print(x)
 
+def numerical_id(user_id):
+    try:
+        int_user_id = int(user_id)
+    except:
+        int_user_id = int(TwitterBot.id_from_screen_name(user_id))
+
+    return int_user_id
 
 def genct0():
     """
@@ -1286,12 +1293,10 @@ class TwitterBot:
                 entries=[]
             entries+=[x.entry for x in instructions if x.type == "TimelineReplaceEntry"]
 
-            #print(instructions)
+            yield entries
 
             if len(entries) <= 2:
                 break
-
-            yield entries
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)
             #could happen when nagivating tweet threads
@@ -1743,6 +1748,15 @@ class TwitterBot:
             status, user_profile = values
             return status
 
+    @staticmethod
+    def id_from_screen_name(screen_name):
+        """
+        Convert user id to screen name
+        """
+        values = TwitterBot.user_by_screen_name(screen_name)
+        if values:
+            status, user_profile = values
+            return user_profile.user_id
 
 if __name__ == "__main__":
     pass

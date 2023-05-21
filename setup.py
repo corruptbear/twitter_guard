@@ -43,7 +43,6 @@ setup_args = {
         'PyYAML~=6.0',
         'requests~=2.28.2',
         'selenium>=4.8.3',
-        'snscrape>=0.6.1.20230314',
         'webdriver_manager==3.8.5',
     ],
     'zip_safe': False

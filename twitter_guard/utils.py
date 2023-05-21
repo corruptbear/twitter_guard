@@ -4,7 +4,6 @@ import numpy as np
 import yaml
 import traceback
 from datetime import datetime, timezone
-import snscrape.modules.twitter as sntwitter
 import re
 
 import pytz
@@ -94,23 +93,6 @@ def get_source_label(s):
     #s = '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>'
     match = re.search(r">(.*)</a>", s)
     return match.group(1)
-
-def id_from_screen_name(screen_name):
-    """
-    Gets the numerical user id given the user handle.
-    """
-    x = sntwitter.TwitterUserScraper(screen_name)
-    userdata = x._get_entity()
-    return int(userdata.id)
-
-
-def numerical_id(user_id):
-    try:
-        int_user_id = int(user_id)
-    except:
-        int_user_id = id_from_screen_name(user_id)
-
-    return int_user_id
 
 def hour_hist_from_timestamps(timestamps):
     """
