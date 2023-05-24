@@ -41,7 +41,7 @@ setup_args = {
         'python_dateutil~=2.8.2',
         'pytz~=2020.4',
         'PyYAML~=6.0',
-        'requests~=2.28.2',
+        'requests>=2.31.0',
         'selenium>=4.8.3',
         'webdriver_manager==3.8.5',
     ],
