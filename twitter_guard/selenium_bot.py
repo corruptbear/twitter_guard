@@ -13,8 +13,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from webdriver_manager.firefox import GeckoDriverManager
 
-import snscrape.modules.twitter as sntwitter
-
 import os
 import sys
 import glob
@@ -191,16 +189,16 @@ class SeleniumTwitterBot:
         self._user_url = d.execute_script("return arguments[0].getAttribute('href');", self._current_element)
         return self._user_url is not None
 
-    def check_user(self, user_name):
-        x = sntwitter.TwitterUserScraper(user_name)
-        userdata = x._get_entity()
-        tweet_count = userdata.statusesCount
-        following_count = userdata.friendsCount
-        followers_count = userdata.followersCount
-        author_created = userdata.created
-        current_time = datetime.now(timezone.utc)
-        time_diff = current_time - author_created
-        print(tweet_count, following_count, followers_count, time_diff.days)
+    #def check_user(self, user_name):
+    #    x = sntwitter.TwitterUserScraper(user_name)
+    #    userdata = x._get_entity()
+    #    tweet_count = userdata.statusesCount
+    #    following_count = userdata.friendsCount
+    #    followers_count = userdata.followersCount
+    #    author_created = userdata.created
+    #    current_time = datetime.now(timezone.utc)
+    #    time_diff = current_time - author_created
+    #    print(tweet_count, following_count, followers_count, time_diff.days)
 
     # manual login and set the page to the notification page
     def twitter_login_manual(self):
@@ -359,8 +357,8 @@ class SeleniumTwitterBot:
         print("user_urls:", user_urls)
         user_names = [x[1:] for x in user_urls]
 
-        for x in user_names:
-            self.check_user(x)
+        #for x in user_names:
+        #    self.check_user(x)
             # test autoblock
             # auto_block_user(driver,x)
 

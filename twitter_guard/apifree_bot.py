@@ -749,19 +749,29 @@ class TwitterBot:
         self._session.mount('https://twitter.com', DESAdapter())
 
         self._cookie_path = cookie_path
-        self._config_path = config_path
-        self._config_dict = load_yaml(config_path)
 
-        self._block_list_path = block_list_path
-        self._block_list = load_yaml(self._block_list_path)
+        if config_path is not None:
+            self._config_path = config_path
+            self._config_dict = load_yaml(config_path)
+        else:
+            self._config_dict = dict()
 
-        self._white_list_path = white_list_path
-        self._white_list = load_yaml(self._white_list_path)
+        if block_list_path is not None:
+            self._block_list_path = block_list_path
+            self._block_list = load_yaml(self._block_list_path)
+        else:
+            self._block_list = dict()
+
+        if white_list_path is not None:
+            self._white_list_path = white_list_path
+            self._white_list = load_yaml(self._white_list_path)
+        else:
+            self._white_list = dict()
 
         if "filtering_rule" in self._config_dict:
             self._filtering_rule = self._config_dict["filtering_rule"]
         else:
-            self._filtering_rule = None
+            self._filtering_rule = "(followers_count < 5) or (days < 180)"
 
         self._backup_log_path = backup_log_path
 
@@ -945,17 +955,7 @@ class TwitterBot:
             users_judgements[user_id]=conclusion_str
         return users_judgements
 
-    def check_notifications(self, block=True):
-        """
-        Gets the recent notifications from the endpoint.
-
-        Whenever there is new notification, or you perform operations like block/unblock, mute/unmute, you will get new stuff here.
-
-        Updates latest_cursor using the top cursor fetched. After the update, if no new thing happens, then you will not get anything here.
-
-        Block bad users.
-
-        """
+    def get_interactions_from_notifications(self):
         url = TwitterBot.urls["notification_all"]
         notification_all_form = TwitterBot.notification_all_form
         r = self._session.get(url, headers=self._headers, params=notification_all_form)
@@ -1096,6 +1096,20 @@ class TwitterBot:
 
                 self.update_local_cursor(cursor.value)
                 # self.update_remote_latest_cursor()  # will cause the badge to disappear
+        return interacting_users
+
+    def check_notifications(self, block=True):
+        """
+        Gets the recent notifications from the endpoint.
+
+        Whenever there is new notification, or you perform operations like block/unblock, mute/unmute, you will get new stuff here.
+
+        Updates latest_cursor using the top cursor fetched. After the update, if no new thing happens, then you will not get anything here.
+
+        Block bad users.
+
+        """
+        interacting_users = self.get_interactions_from_notifications()
 
         users_judgements = self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users}, block = block)
 
