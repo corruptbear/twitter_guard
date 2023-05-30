@@ -210,6 +210,7 @@ class Tweet:
     retweet_count : int = dataclasses.field(default=None)
     favorite_count : int = dataclasses.field(default=None)
     quote_count : int = dataclasses.field(default=None)
+    bookmark_count : int = dataclasses.field(default=None)
     
     user : TwitterUserProfile = dataclasses.field(default=None)
 
@@ -1214,6 +1215,7 @@ class TwitterBot:
             reply_count = result.legacy.reply_count,
             retweet_count = result.legacy.retweet_count,
             quote_count = result.legacy.quote_count,
+            bookmark_count = result.legacy.bookmark_count,
             hashtags = [x['text'] for x in result.legacy.entities.hashtags],
             user_mentions = [TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
             user = user
