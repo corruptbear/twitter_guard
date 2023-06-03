@@ -20,7 +20,6 @@ import re
 import secrets
 import copy
 
-from .selenium_bot import SeleniumTwitterBot
 from .utils import *
 from .rule_parser import rule_eval
 #from .reporter import ReportHandler
@@ -846,12 +845,7 @@ class TwitterBot:
             self._load_cookies()
         except:
             display_msg("trying using selenium to get cookies")
-            b = SeleniumTwitterBot(config_path=self._config_path, cookie_path=self._cookie_path)
-            # new cookie will be saved from selenium
-            b.twitter_login()
-            b.save_cookies()
 
-            self._set_selenium_cookies(b.driver.get_cookies())
 
     def _select_search_method(self):
         try:

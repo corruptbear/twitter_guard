@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
 
 import yaml
 import traceback
@@ -93,51 +91,3 @@ def get_source_label(s):
     #s = '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>'
     match = re.search(r">(.*)</a>", s)
     return match.group(1)
-
-def hour_hist_from_timestamps(timestamps):
-    """
-    Returns:
-
-    a 24-element list that counts occurences of each hour in the utc timestamps. 
-    """
-    SECONDS_PER_HOUR = 3600
-    SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
-    hours = [x % SECONDS_PER_DAY // SECONDS_PER_HOUR for x in timestamps]
-    hist = [0]*24
-    for x in hours:
-        hist[x]+=1
-    return hist
-
-def weekday_hist_from_timestamps(timestamps, utc_offset = None, tz = None):
-    weekdays = [get_weekday(x, utc_offset = utc_offset, tz=tz) for x in timestamps]
-    hist = [0]*7
-    for x in weekdays:
-        hist[x]+=1
-    return hist
-
-def plot_utc_timestamps_by_hour(timestamps):
-    """
-    Plot the hourly histogram of the timestamps.
-    The timestamps are in utc timestamp format.
-    """
-    hourly = hour_hist_from_timestamps(timestamps)
-    # Create bar plot
-    plt.bar(range(24),hourly)
-    #plt.hist(hours, bins=[x for x in range(25)], density=True)
-    #plt.xlim([0, 24])
-    plt.xlabel("hour (UTC+00:00)")
-    plt.ylabel("count")
-    plt.title("posting time")
-    plt.show()
-
-
-def plot_utc_timestamps_intervals(timestamps, minimum=None, maximum=None):
-    post = np.array(timestamps[1:])
-    pre = np.array(timestamps[:-1])
-    intervals = pre - post
-
-    if minimum is not None and maximum is not None:
-        intervals = [x for x in intervals if x > minimum and x < maximum]
-
-    plt.hist(intervals)
-    plt.show()
