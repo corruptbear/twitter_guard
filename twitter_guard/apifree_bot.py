@@ -188,7 +188,7 @@ class TwitterUserProfile:
     def __post_init__(self):
         if self.created_at is not None:
             current_time = datetime.now(timezone.utc)
-            created_time = datetime.strptime(self.created_at, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
+            created_time = datetime.strptime(self.created_at, "%Y-%m-%dT%H:%M:%S+00:00").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
             time_diff = current_time - created_time
             self.days_since_registration = time_diff.days
 
@@ -709,7 +709,7 @@ class TwitterBot:
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
         "Accept": "*/*",
         "Accept-Language": "en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "utf-8",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         "Host": "api.twitter.com",
@@ -1711,7 +1711,11 @@ class TwitterBot:
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
         r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-
+        print(r.apparent_encoding, r.headers.get('Content-Encoding'))
+        if r.headers.get('Content-Encoding')=='gzip':
+            import gzip
+            #print(gzip.decompress(r.content).decode('utf-8'))
+        r.encoding = r.apparent_encoding
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
