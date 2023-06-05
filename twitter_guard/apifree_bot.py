@@ -1016,9 +1016,11 @@ class TwitterBot:
                 # print(notification)
                 # print(notification.message.text)
                 for e in notification.message.entities:
-                    entry_user_id = int(e.ref.user.id)
-                    # add the users appearing in notifications (do not include replies)
-                    notification_id_to_user_id[notification.id] = entry_user_id
+                    #there might be notifications that have non-empty entities field but do not contain any user
+                    if e.ref is not None:
+                        entry_user_id = int(e.ref.user.id)
+                        # add the users appearing in notifications (do not include replies)
+                        notification_id_to_user_id[notification.id] = entry_user_id
 
         display_msg("timeline")
         print("TIMELINE ID", result.timeline.id)
