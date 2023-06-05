@@ -204,6 +204,12 @@ class Tweet:
     lang: str = dataclasses.field(default=None)
     hashtags: list = dataclasses.field(default=None)
     user_mentions: list = dataclasses.field(default=None)
+    quoted_tweet_id: int = dataclasses.field(default=None)
+    quoted_user_id: int = dataclasses.field(default=None)
+    replied_tweet_id: int = dataclasses.field(default=None)
+    replied_user_id:int = dataclasses.field(default=None)
+    retweeted_tweet_id: int = dataclasses.field(default=None)
+    retweeted_user_id: int = dataclasses.field(default=None)
 
     view_count : int = dataclasses.field(default=None)
     reply_count : int = dataclasses.field(default=None)
@@ -1189,29 +1195,64 @@ class TwitterBot:
                     print("cannot get user data", e.entryId)
 
     @staticmethod
-    def _tweet_type(in_reply_to_screen_name, is_quote_status, retweeted):
-        if in_reply_to_screen_name is not None:
-            if is_quote_status:
+    def _tweet_type(tweet):
+        #a retweet could be anything, but it's a retweet first.
+        if "RT @" in tweet.full_text:
+            return "retweeted"
+        if tweet.in_reply_to_status_id_str is not None:
+            if tweet.is_quote_status:
                 return "reply_by_quote"
-            else:
-                return "reply"
+            return "reply"
         else:
-            if is_quote_status:
+            if tweet.is_quote_status:
                 return "quote"
-            if retweeted:
-                return "retweeted"
             return "original"
 
     @staticmethod
     def _tweet_from_result(result):
-        tweet_type = TwitterBot._tweet_type(result.legacy.in_reply_to_screen_name, result.legacy.is_quote_status, result.legacy.retweeted)
+        tweet_type = TwitterBot._tweet_type(result.legacy)
         try:
             _, user = TwitterBot._status_and_user_from_result(result.core.user_results.result)
         except:
             print(result)
+
+        #None by default
+        quoted_tweet_id, quoted_user_id = None, None
+        replied_tweet_id,replied_user_id = None, None
+        retweeted_tweet_id, retweeted_user_id = None, None
+
+        if tweet_type == "quote" or tweet_type == "reply_by_quote":
+            quoted_tweet_id = int(result.legacy.quoted_status_id_str)
+            try:
+                #could be tombstone
+                if result.quoted_status_result.result.legacy is not None:
+                    quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)
+            except:
+                print("quote",result)
+
+        if tweet_type == "reply" or tweet_type == "reply_by_quote":
+            try:
+                replied_tweet_id = int(result.legacy.in_reply_to_status_id_str)
+                replied_user_id = int(result.legacy.in_reply_to_user_id_str)
+            except:
+                print("reply",result)
+
+        if tweet_type == "retweeted":
+            try:
+                retweeted_tweet_id = int(result.legacy.retweeted_status_result.result.rest_id)
+                retweeted_user_id = int(result.legacy.retweeted_status_result.result.legacy.user_id_str)
+            except:
+                print("retweet",result)
+
         tweet = Tweet(
             result.rest_id,
             tweet_type=tweet_type,
+            quoted_tweet_id = quoted_tweet_id,
+            quoted_user_id = quoted_user_id,
+            replied_tweet_id = replied_tweet_id,
+            replied_user_id = replied_user_id,
+            retweeted_tweet_id = retweeted_tweet_id,
+            retweeted_user_id = retweeted_user_id,
             created_at=sns_timestamp_from_tweet_timestamp(result.legacy.created_at),
             source=result.source,
             text=result.legacy.full_text,
@@ -1626,7 +1667,7 @@ class TwitterBot:
 
             for tweet_id in tweets:
                 tweet = tweets[tweet_id]
-                tweet_type = TwitterBot._tweet_type(tweet.in_reply_to_screen_name, tweet.is_quote_status, tweet.retweeted)
+                tweet_type = TwitterBot._tweet_type(tweet)
                 user_id = tweet.user_id
 
                 user = users[str(user_id)]
