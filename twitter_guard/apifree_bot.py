@@ -1051,6 +1051,8 @@ class TwitterBot:
                 "generic_login_notification",
                 "generic_report_received",
                 "generic_abuse_report_actioned_with_count",
+                "generic_magic_rec_first_degree_tweet_recent",
+                "generic_magic_fanout_creator_subscription",
             ]:
                 entry_id = entry.entryId[13:]
                 entry_user_id = notification_id_to_user_id[entry_id]
