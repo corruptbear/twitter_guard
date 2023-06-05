@@ -26,6 +26,9 @@ class ReportOption:
     PrivateInfoContactInfoOption = "PrivateInfoContactInfoOption"
     OtherOption = "OtherOption"
 
+    ZazuImpersonationOption = "ZazuImpersonationOption"
+    PretendingToBeOption = "PretendingToBeOption"
+
     GeneralMisinformationPoliticsOption = "GeneralMisinformationPoliticsOption"
     GeneralMisinformationPoliticsOtherOption = "GeneralMisinformationPoliticsOtherOption"
 
@@ -153,6 +156,18 @@ class ReportHandler:
         ]
     }
 
+    user_search_payload = {
+        "subtask_inputs": [
+            {
+                "subtask_id": "typeahead-search",
+                "typeahead_search": {
+                    "link": "next_link",
+                    "selected_item_id": ""
+                }
+            }
+        ]
+    }
+
     review_submit_payload = {
         "subtask_inputs": [
             {
@@ -212,6 +227,11 @@ class ReportHandler:
         "Insulting":{
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], []],
             "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
+        },
+
+        #TODO: only form me; needs to figure out for others
+        "Impersonation":{
+            "options": [[ReportOption.ZazuImpersonationOption], [ReportOption.PretendingToBeOption], ["TargetingMeOption"]],
         }
 
     }

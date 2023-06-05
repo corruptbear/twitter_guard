@@ -203,7 +203,7 @@ class Tweet:
     lang: str = dataclasses.field(default=None)
     hashtags: list = dataclasses.field(default=None)
     user_mentions: list = dataclasses.field(default=None)
-    
+
     view_count : int = dataclasses.field(default=None)
     reply_count : int = dataclasses.field(default=None)
     retweet_count : int = dataclasses.field(default=None)
@@ -875,7 +875,8 @@ class TwitterBot:
         TwitterBot.notification_all_form["cursor"] = val
         self._config_dict["latest_cursor"] = val
 
-        save_yaml(self._config_dict, self._config_path, "w")
+        if hasattr(self, "_config_path") and self._config_path is not None:
+            save_yaml(self._config_dict, self._config_path, "w")
 
     def _load_cursor(self):
         if len(self._config_dict["latest_cursor"].strip()) > 0:
@@ -950,7 +951,7 @@ class TwitterBot:
             users_judgements[user_id]=conclusion_str
         return users_judgements
 
-    def get_interactions_from_notifications(self):
+    def get_interactions_from_notifications(self, update_remote_cursor = False):
         url = TwitterBot.urls["notification_all"]
         notification_all_form = TwitterBot.notification_all_form
         r = self._session.get(url, headers=self._headers, params=notification_all_form)
@@ -1009,9 +1010,11 @@ class TwitterBot:
                 # print(notification)
                 # print(notification.message.text)
                 for e in notification.message.entities:
-                    entry_user_id = int(e.ref.user.id)
-                    # add the users appearing in notifications (do not include replies)
-                    notification_id_to_user_id[notification.id] = entry_user_id
+                    #there might be notifications that have non-empty entities field but do not contain any user
+                    if e.ref is not None:
+                        entry_user_id = int(e.ref.user.id)
+                        # add the users appearing in notifications (do not include replies)
+                        notification_id_to_user_id[notification.id] = entry_user_id
 
         display_msg("timeline")
         print("TIMELINE ID", result.timeline.id)
@@ -1090,10 +1093,11 @@ class TwitterBot:
                 self.latest_sortindex = entry.sortIndex
 
                 self.update_local_cursor(cursor.value)
-                # self.update_remote_latest_cursor()  # will cause the badge to disappear
+                if update_remote_cursor:
+                    self.update_remote_latest_cursor()  # will cause the badge to disappear
         return interacting_users
 
-    def check_notifications(self, block=True):
+    def check_notifications(self, block=True, update_remote_cursor = False):
         """
         Gets the recent notifications from the endpoint.
 
@@ -1104,7 +1108,7 @@ class TwitterBot:
         Block bad users.
 
         """
-        interacting_users = self.get_interactions_from_notifications()
+        interacting_users = self.get_interactions_from_notifications(update_remote_cursor=update_remote_cursor)
 
         users_judgements = self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users}, block = block)
 
