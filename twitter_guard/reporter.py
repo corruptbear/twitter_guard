@@ -23,6 +23,7 @@ class ReportOption:
     WishingHarmOption = "WishingHarmOption"
 
     PostingPrivateInfoOption = "PostingPrivateInfoOption"
+    ThreateningToExposeOption = "ThreateningToExposeOption"
     PrivateInfoContactInfoOption = "PrivateInfoContactInfoOption"
     OtherOption = "OtherOption"
 
@@ -217,6 +218,10 @@ class ReportHandler:
         "PostingPrivateInfo":{
             "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.PostingPrivateInfoOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption]]
             
+        },
+
+        "ThreateningToExpose":{
+            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.ThreateningToExposeOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption]]
         },
 
         "WishingHarm":{
@@ -488,6 +493,9 @@ class ReportHandler:
             return
 
         for choice in options:
+            #skip the question that only appears when you report from profile for reports on tweets
+            if tweet_id is not None and ReportOption.ReportedsProfileOption in choice:
+                continue
             if self._handle_choices(choice)!=200:
                 return
 
