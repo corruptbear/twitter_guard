@@ -33,6 +33,10 @@ from http.client import HTTPConnection
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def drop_accept_encoding_on_putheader(http_connection_putheader):
     def wrapper(self, header, *values):
         if header == "Accept-Encoding" and "identity" in values:
@@ -70,7 +74,7 @@ class DESAdapter(HTTPAdapter):
 def display_session_cookies(s):
     display_msg("print cookies")
     for x in s.cookies:
-        print(x)
+        logger.debug(f"{x}")
 
 def numerical_id(user_id):
     try:
@@ -108,8 +112,8 @@ def oracle(user, filtering_rule):
 
     try:
         result = rule_eval(filtering_rule, rule_eval_vars)
-    except Exception as e:
-        print(e)
+    except:
+        traceback.print_exc()
         result = rule_eval(default_rule, rule_eval_vars)
 
     return result
@@ -283,8 +287,6 @@ class TwitterLoginBot:
         # save the cookies for reuse
         self.save_cookies()
 
-        print("")
-
     def _init_forms(self):
         self.get_token_payload = {
             "input_flow_data": {
@@ -454,15 +456,15 @@ class TwitterLoginBot:
         display_msg("cookies from requests saved")
 
     def _prepare_next_login_task(self, r):
-        print(r.status_code)
+        logger.info(r.status_code)
         j = r.json()
         self.login_flow_token = j["flow_token"]
         subtasks = j["subtasks"]
 
-        print("flow_token:", self.login_flow_token)
+        logger.debug(f"flow_token: {self.login_flow_token}")
 
         for s in subtasks:
-            print(s["subtask_id"])
+            logger.debug(f"{s['subtask_id']}")
 
     def _do_task(self):
         task = int(self.login_flow_token.split(":")[-1])
@@ -804,7 +806,7 @@ class TwitterBot:
     def _set_selenium_cookies(self, cookies):
         display_msg("setting cookies")
         for x in cookies:
-            print(x)
+            logger.debug(f"{x}")
             otherinfo = dict()
             if "secure" in x:
                 otherinfo = {
@@ -866,11 +868,11 @@ class TwitterBot:
             for x in self.search_timeline_graphql("world"):
                 tmp = x.user
                 self.search_timeline = self.search_timeline_graphql
-                print("graphql search selected")
+                logger.info("graphql search selected")
                 break
         except:
             self.search_timeline = self.search_timeline_login_legacy
-            print("legacy search selected")
+            logger.info("legacy search selected")
 
     def get_badge_count(self):
         display_msg("get badge count")
@@ -882,7 +884,7 @@ class TwitterBot:
         result = None
         if r.status_code == 200:
             result = r.json()
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
         return r.status_code, result
 
     def update_local_cursor(self, val):
@@ -895,13 +897,13 @@ class TwitterBot:
     def _load_cursor(self):
         if len(self._config_dict["latest_cursor"].strip()) > 0:
             TwitterBot.notification_all_form["cursor"] = self._config_dict["latest_cursor"]
-        print("after loading cursor:", TwitterBot.notification_all_form["cursor"])
+        logger.info(f"after loading cursor:{TwitterBot.notification_all_form['cursor']}")
 
     def update_remote_cursor(self, val):
         url = TwitterBot.urls["last_seen_cursor"]
         cursor_form = {"cursor": val}
         r = self._session.post(url, headers=self._headers, params=cursor_form)
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
     def update_remote_latest_cursor(self):
         """
@@ -921,9 +923,9 @@ class TwitterBot:
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
         if r.status_code == 200:
-            print("successfully sent block post!")
+            logger.info("successfully sent block post!")
         display_msg("block")
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
     def unblock_user(self, user_id):
         user_id = numerical_id(user_id)
@@ -932,9 +934,9 @@ class TwitterBot:
         unblock_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unblock_form)
         if r.status_code == 200:
-            print("successfully sent unblock post!")
+            logger.info("successfully sent unblock post!")
         display_msg("unblock")
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
     def mute_user(self, user_id):
         user_id = numerical_id(user_id)
@@ -943,9 +945,9 @@ class TwitterBot:
         mute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=mute_form)
         if r.status_code == 200:
-            print("successfully sent mute post!")
+            logger.info("successfully sent mute post!")
         display_msg("mute")
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
     def unmute_user(self, user_id):
         user_id = numerical_id(user_id)
@@ -954,9 +956,9 @@ class TwitterBot:
         unmute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unmute_form)
         if r.status_code == 200:
-            print("successfully sent unmute post!")
+            logger.info("successfully sent unmute post!")
         display_msg("unmute")
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
     def judge_users(self, users, block=False):
         """
@@ -981,7 +983,7 @@ class TwitterBot:
                 self._block_list[user.user_id] = user.screen_name
                 save_yaml(self._block_list, self._block_list_path, "w")
 
-            print(
+            logger.info(
                 f"ORACLE TIME!: id {user.user_id:<25} name {user.screen_name:<16} followers_count {user.followers_count:<10} days_since_reg {user.days_since_registration:<5} is {conclusion_str}"
             )
             users_judgements[user_id]=conclusion_str
@@ -993,17 +995,17 @@ class TwitterBot:
         r = self._session.get(url, headers=self._headers, params=notification_all_form)
 
         display_msg("notifications/all.json")
-        print(f"status_code: {r.status_code}, length: {r.headers['content-length']}")
+        logger.debug(f"status_code: {r.status_code}, length: {r.headers['content-length']}")
 
         result = r.json()
         result = TwitterJSON(result)
 
-        print("result keys:", result.keys())
+        logger.debug(f"result keys: {result.keys()}")
 
         convo = set()
         tweets, notifications = [], []
 
-        print("globalObjects keys:", result.globalObjects.keys(), "\n")
+        logger.debug(f"globalObjects keys: {result.globalObjects.keys()}")
 
         logged_users = {}
 
@@ -1053,7 +1055,7 @@ class TwitterBot:
                         notification_id_to_user_id[notification.id] = entry_user_id
 
         display_msg("timeline")
-        print("TIMELINE ID", result.timeline.id)
+        logger.info(f"TIMELINE ID: {result.timeline.id}")
         instructions = result.timeline.instructions  # instructions is a list
 
         # print all keys
@@ -1086,7 +1088,7 @@ class TwitterBot:
             ]:
                 entry_id = entry.entryId[13:]
                 entry_user_id = notification_id_to_user_id[entry_id]
-                print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
+                logger.info(f"{entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
                 interacting_users[entry_id] = {
                     "sort_index": entry.sortIndex,
                     "user_id": entry_user_id,
@@ -1099,7 +1101,7 @@ class TwitterBot:
         for entry in non_cursor_tweet_entries:
             entry_id = entry.entryId[13:]
             entry_user_id = id_indexed_tweets[int(entry.content.item.content.tweet.id)].user_id
-            print(entry.sortIndex, entry.content.item.clientEventInfo.element, entry_user_id)
+            logger.info(f"{entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
             # add the users replying to me
             interacting_users[entry_id] = {
                 "sort_index": entry.sortIndex,
@@ -1111,7 +1113,7 @@ class TwitterBot:
         display_msg("all interactions")
         # sort by time from latest to earliest
         for x in sorted(interacting_users.items(), key=lambda item: item[1]["sort_index"], reverse=True):
-            print(f"{x[1]['user'].screen_name:<16} {x[1]['event_type']}")
+            logger.info(f"{x[1]['user'].screen_name:<16} {x[1]['event_type']}")
 
         display_msg("check users interacting with me")
         """
@@ -1126,7 +1128,7 @@ class TwitterBot:
         display_msg("cursors")
         for entry in cursor_entries:
             cursor = entry.content.operation.cursor
-            print(entry.sortIndex, cursor)
+            logger.debug(f"{entry.sortIndex} {cursor}")
             if cursor.cursorType == "Top":
                 self.latest_sortindex = entry.sortIndex
 
@@ -1216,7 +1218,7 @@ class TwitterBot:
                 if user is not None:
                     yield user
                 else:
-                    print("cannot get user data", e.entryId)
+                    logger.info(f"cannot get user data: {e.entryId}")
 
     @staticmethod
     def _tweet_type(tweet):
@@ -1238,7 +1240,7 @@ class TwitterBot:
         try:
             _, user = TwitterBot._status_and_user_from_result(result.core.user_results.result)
         except:
-            print(result)
+            logger.debug(f"{result}")
 
         #None by default
         quoted_tweet_id, quoted_user_id = None, None
@@ -1252,21 +1254,21 @@ class TwitterBot:
                 if result.quoted_status_result.result.legacy is not None:
                     quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)
             except:
-                print("quote",result)
+                logger.debug(f"quote: {result}")
 
         if tweet_type == "reply" or tweet_type == "reply_by_quote":
             try:
                 replied_tweet_id = int(result.legacy.in_reply_to_status_id_str)
                 replied_user_id = int(result.legacy.in_reply_to_user_id_str)
             except:
-                print("reply",result)
+                logger.debug(f"reply: {result}")
 
         if tweet_type == "retweeted":
             try:
                 retweeted_tweet_id = int(result.legacy.retweeted_status_result.result.rest_id)
                 retweeted_user_id = int(result.legacy.retweeted_status_result.result.legacy.user_id_str)
             except:
-                print("retweet",result)
+                logger.debug(f"retweet: {result}")
 
         tweet = Tweet(
             result.rest_id,
@@ -1350,9 +1352,9 @@ class TwitterBot:
             r = session.get(url, headers=headers, params=encoded_params)
             #print(r.status_code,r.text)
             if r.status_code != 200:
-                print(r.request.url)
-                print(headers)
-                print(r.status_code, r.text)
+                logger.debug(f"{r.request.url}")
+                logger.debug(f"{headers}")
+                logger.debug(f"{r.status_code}, {r.text}")
                 break
 
             response = r.json()
@@ -1533,7 +1535,7 @@ class TwitterBot:
 
         # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        print(r.status_code, r.text)
+        logger.debug(f"{r.status_code}, {r.text}")
 
         response = r.json()
         response = TwitterJSON(response)
@@ -1551,7 +1553,7 @@ class TwitterBot:
 
         # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        print(r.status_code)
+        logger.debug(r.status_code)
 
         response = r.json()
         response = TwitterJSON(response)
@@ -1653,7 +1655,7 @@ class TwitterBot:
         response = json.loads(p)
 
         response = TwitterJSON(response)
-        print("response (curl)",list(response.globalObjects.tweets)[0])
+        logger.debug(f"response (curl) {list(response.globalObjects.tweets)[0]}")
 
     def search_timeline_login_legacy(self,query):
         url = "https://twitter.com/i/api/2/search/adaptive.json"
@@ -1670,11 +1672,11 @@ class TwitterBot:
         while True:
             r = self._session.get(url, headers=headers, params=form)
             if r.status_code != 200:
-                print(r.status_code, r.text)
+                logger.debug(f"{r.status_code}, {r.text}")
                 break
             #print(r.text)
 
-            print('x-rate-limit-remaining',r.headers['x-rate-limit-remaining'],'until x-rate-limit-reset',int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp())
+            logger.info(f"x-rate-limit-remaining: {r.headers['x-rate-limit-remaining']} until x-rate-limit-reset: {int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()}")
             if int(r.headers['x-rate-limit-remaining']) == 0:
                 sleep(int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()+1)
 
@@ -1739,7 +1741,7 @@ class TwitterBot:
             form['cursor']=bottom_cursor
 
             if r.headers['x-rate-limit-remaining'] == 0:
-                print("rate limit reached")
+                logger.info("rate limit reached")
                 break
 
         #import subprocess
@@ -1788,7 +1790,7 @@ class TwitterBot:
             response = TwitterJSON(response)
             return TwitterBot._status_and_user_from_result(response.data.user.result)
         else:
-            print(r.status_code, r.text)
+            logger.debug(f"{r.status_code}, {r.text}")
 
     @staticmethod
     def user_by_id(user_id):
@@ -1813,7 +1815,7 @@ class TwitterBot:
             response = TwitterJSON(response)
             return TwitterBot._status_and_user_from_result(response.data.user.result)
         else:
-            print(r.status_code, r.text)
+            logger.debug(f"{r.status_code}, {r.text}")
 
     @staticmethod
     def status_by_screen_name(screen_name):

@@ -7,6 +7,10 @@ import copy
 from .utils import *
 from .apifree_bot import TwitterBot
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class _ReportType(Enum):
     PROFILE = "profile"
     TWEET = "tweet"
@@ -298,11 +302,11 @@ class ReportHandler:
     def _get_flow_token(self, report_type, screen_name = None, user_id = None, tweet_id = None):
         # if user id is not provided
         if screen_name is not None and user_id is None:
-            print("query to get user id...")
+            logger.info("query to get user id...")
             user_id = TwitterBot.id_from_screen_name(screen_name)
         # if only tweet_id is available
         if screen_name is None and user_id is None and tweet_id is not None:
-            print("getting info from tweet...")
+            logger.info("getting info from tweet...")
             tweet = next(TwitterBot.tweet_detail(tweet_id))
             user_id = tweet.user.user_id
             screen_name = tweet.user.screen_name
@@ -335,20 +339,18 @@ class ReportHandler:
         try:
             response = r.json()
             self.flow_token = response["flow_token"]
-            print(
-                r.status_code,
-                [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
+            logger.debug(f"{r.status_code} {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
             )
         except:
-            print(r.status_code)
-            print(r.text)
+            logger.info(r.status_code)
+            logger.debug(f"{r.text}")
         return r.status_code
 
     def _handle_choices(self, choices):
         # make choices
         choices_payload = copy.deepcopy(ReportHandler.choices_payload)
 
-        print("choices:", choices)
+        logger.info(f"choices: {choices}")
         if len(choices)>0:
             choices_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = choices
 
@@ -374,14 +376,11 @@ class ReportHandler:
             self.flow_token = response["flow_token"]
 
             if "choice_selection" in response["subtasks"][0]:
-                print(
-                    r.status_code,
-                    [s["id"] for s in response["subtasks"][0]["choice_selection"]["choices"]],
-                )
+                logger.debug(f"{r.status_code}, {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}")
             else:
-                print([s["subtask_id"] for s in response["subtasks"]])
+                logger.debug(f"{[s['subtask_id'] for s in response['subtasks']]}")
         else:
-            print(r.status_code, r.text)
+            logger.debug(f"{r.status_code} {r.text}")
 
         return r.status_code
 
@@ -395,11 +394,11 @@ class ReportHandler:
         )
 
         if r.status_code == 200:
-            print("clicked yes in validation!")
+            logger.info("clicked yes in validation!")
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            print(r.status_code, "validation click failed")
+            logger.info(r.status_code, "validation click failed")
 
         return r.status_code
 
@@ -415,13 +414,13 @@ class ReportHandler:
         )
 
         if r.status_code == 200:
-            print("successfully submitted!")
+            logger.info("successfully submitted!")
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            print(r.status_code, "submit failed")
-            print(review_submit_payload)
-            print(r.text)
+            logger.info(f"{r.status_code} submit failed")
+            logger.debug(f"{review_submit_payload}")
+            logger.debug(f"{r.text}")
         return r.status_code
 
     def _handle_completion(self):
@@ -436,9 +435,9 @@ class ReportHandler:
         self.flow_token = response["flow_token"]
 
         if r.status_code == 200:
-            print("successfully completed!")
+            logger.info("successfully completed!")
         else:
-            print(r.status_code)
+            logger.info(r.status_code)
         return r.status_code
 
     def _handle_target(self, target):
@@ -452,7 +451,7 @@ class ReportHandler:
         elif target=="Everyone":
             target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["EveryoneOnTwitterOption"]
 
-        print("target:",target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"])
+        logger.debug(f"target: {target_payload['subtask_inputs'][0]['choice_selection']['selected_choices']}")
 
         target_payload["flow_token"] = self.flow_token
 
@@ -461,7 +460,7 @@ class ReportHandler:
             headers=self._headers,
             data=json.dumps(target_payload),
         )
-        print(r.status_code)
+        logger.info(r.status_code)
         response = r.json()
         self.flow_token = response["flow_token"]
 
@@ -480,7 +479,7 @@ class ReportHandler:
         context_msg (str): additional context message.
         """
 
-        print(report_type)
+        logger.info(report_type)
         options = ReportHandler.options[option_name]["options"]
 
         if self._get_flow_token(report_type, screen_name = screen_name, user_id = user_id, tweet_id = tweet_id)!=200:
@@ -547,11 +546,11 @@ class ReportHandler:
 
             #skip user already reported
             if skip_same_user and screen_name in abuser_list:
-                print(f"Skipped: {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
+                logger.info(f"Skipped: {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
                 continue
           
             abuser_list[screen_name] = user_id
-            print(f"{count:<5} {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
+            logger.info(f"{count:<5} {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
             count += 1
             
             #self.report_user(option_name, target=self._target, user_id=user_id, screen_name = screen_name, context_msg=context_msg)

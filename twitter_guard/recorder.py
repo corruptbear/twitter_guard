@@ -3,6 +3,10 @@ import json
 import sqlite3
 from .utils import *
 from .apifree_bot import TwitterBot
+import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Recorder:
     def __init__(self, db_path):
@@ -12,8 +16,8 @@ class Recorder:
     def _create_table(self, create_table_sql):
         try:
             self._cursor.execute(create_table_sql)
-        except Exception as e:
-            print(e)
+        except:
+            traceback.print_exc()
 
     def _create_db(self):
         """
@@ -102,22 +106,22 @@ class Recorder:
             source = tweet.source
 
             if get_source_label(source) != "Twitter Web App":
-                print(f"{source:.>100}")
+                logger.info(f"{source:.>100}")
 
             timestamp = sns_timestamp_to_utc_datetime(posted_at)
             # if latest post in the current search
             if count == 0:
                 # update the table if unseen
                 if timestamp > recorded_latest_timestamp:
-                    print("new data seen!")
+                    logger.info("new data seen!")
                     self._cursor.execute("UPDATE queries SET latest_result_date=? WHERE query=?", (posted_at, query))
 
             # compare the current timestamp with the recorded latest timestamp
             if timestamp <= recorded_latest_timestamp:
-                print(f"counter: {count}, reaches the point of last search")
+                logger.info(f"counter: {count}, reaches the point of last search")
                 break
 
-            print(f"counter: {count:<6} timestamp: {posted_at:<25} user:{screen_name:<16} text: {text_raw}")
+            logger.info(f"counter: {count:<6} timestamp: {posted_at:<25} user:{screen_name:<16} text: {text_raw}")
 
             # tweet statistics
             if tweet.view_count is not None:
@@ -180,12 +184,12 @@ class Recorder:
         # then delete from the users table
         self._cursor.execute("DELETE from users where screen_name=?", (screen_name,))
 
-        print(f"{screen_name} deleted from the tables!")
+        logger.info(f"{screen_name} deleted from the tables!")
         self.conn.commit()
 
     def display_fetch(self):
         for x in self._cursor.fetchall():
-            print(dict(x))
+            logger.info(f"{dict(x)}")
 
     def show_suspended_users(self):
         # all suspended
@@ -221,10 +225,10 @@ class Recorder:
         display_msg("check status now")
         self._cursor.execute("SELECT account_status, COUNT(*) from users GROUP BY account_status")
         for x in self._cursor.fetchall():
-            print("all users:", dict(x))
+            logger.info(f"all users: {dict(x)}")
         self._cursor.execute("SELECT COUNT(*) from posts")
         for x in self._cursor.fetchall():
-            print("all posts:", dict(x))
+            logger.info(f"all posts:  {dict(x)}")
         self._cursor.execute("SELECT query, COUNT(*) from posts GROUP BY query")
         self.display_fetch()
 
@@ -247,7 +251,7 @@ class Recorder:
             # source = user_dict['initially_recorded_source']
             old_status = user_dict["account_status"]
             new_status = TwitterBot.status_by_id(int(user_id))
-            print(f"{user_id:<20} {screen_name:<16} {last_posted} {old_status} -> {new_status}")
+            logger.info(f"{user_id:<20} {screen_name:<16} {last_posted} {old_status} -> {new_status}")
             # print(user_dict)
 
             if new_status is not None:
