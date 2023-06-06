@@ -559,6 +559,8 @@ class TwitterBot:
         "last_seen_cursor": "https://api.twitter.com/2/notifications/all/last_seen_cursor.json",
         "block": "https://api.twitter.com/1.1/blocks/create.json",
         "unblock": "https://api.twitter.com/1.1/blocks/destroy.json",
+        "mute": "https://api.twitter.com/1.1/mutes/users/create.json",
+        "unmute": "https://api.twitter.com/1.1/mutes/users/destroy.json",
         "retweeters": "https://twitter.com/i/api/graphql/ViKvXirbgcKs6SfF5wZ30A/Retweeters",
         "followers": "https://twitter.com/i/api/graphql/utPIvA97eaEvxfra_PQz_A/Followers",
         "following": "https://twitter.com/i/api/graphql/AmvGuDw_fxEbJtEXie4OkA/Following",
@@ -926,6 +928,28 @@ class TwitterBot:
         if r.status_code == 200:
             print("successfully sent unblock post!")
         display_msg("unblock")
+        print(r.status_code, r.text)
+
+    def mute_user(self, user_id):
+        user_id = numerical_id(user_id)
+
+        url = TwitterBot.urls["mute"]
+        mute_form = {"user_id": str(user_id)}
+        r = self._session.post(url, headers=self._headers, params=mute_form)
+        if r.status_code == 200:
+            print("successfully sent mute post!")
+        display_msg("mute")
+        print(r.status_code, r.text)
+
+    def unmute_user(self, user_id):
+        user_id = numerical_id(user_id)
+
+        url = TwitterBot.urls["unmute"]
+        unmute_form = {"user_id": str(user_id)}
+        r = self._session.post(url, headers=self._headers, params=unmute_form)
+        if r.status_code == 200:
+            print("successfully sent unmute post!")
+        display_msg("unmute")
         print(r.status_code, r.text)
 
     def judge_users(self, users, block=False):
