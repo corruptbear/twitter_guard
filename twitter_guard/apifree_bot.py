@@ -923,8 +923,7 @@ class TwitterBot:
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
         if r.status_code == 200:
-            logger.info("successfully sent block post!")
-        display_msg("block")
+            logger.info(f"block {user_id}: successfully sent block post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unblock_user(self, user_id):
@@ -934,8 +933,7 @@ class TwitterBot:
         unblock_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unblock_form)
         if r.status_code == 200:
-            logger.info("successfully sent unblock post!")
-        display_msg("unblock")
+            logger.info(f"unbock {user_id}: successfully sent unblock post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def mute_user(self, user_id):
@@ -945,8 +943,7 @@ class TwitterBot:
         mute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=mute_form)
         if r.status_code == 200:
-            logger.info("successfully sent mute post!")
-        display_msg("mute")
+            logger.info(f"mute {user_id}: successfully sent mute post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unmute_user(self, user_id):
@@ -956,8 +953,7 @@ class TwitterBot:
         unmute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unmute_form)
         if r.status_code == 200:
-            logger.info("successfully sent unmute post!")
-        display_msg("unmute")
+            logger.info(f"unmute {user_id}: successfully sent unmute post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def judge_users(self, users, block=False):
@@ -1248,8 +1244,8 @@ class TwitterBot:
         retweeted_tweet_id, retweeted_user_id = None, None
 
         if tweet_type == "quote" or tweet_type == "reply_by_quote":
-            quoted_tweet_id = int(result.legacy.quoted_status_id_str)
             try:
+                quoted_tweet_id = int(result.legacy.quoted_status_id_str)
                 #could be tombstone
                 if result.quoted_status_result.result.legacy is not None:
                     quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)

@@ -398,7 +398,7 @@ class ReportHandler:
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            logger.info(r.status_code, "validation click failed")
+            logger.error(f"{r.status_code}: validation click failed")
 
         return r.status_code
 
@@ -418,7 +418,7 @@ class ReportHandler:
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            logger.info(f"{r.status_code} submit failed")
+            logger.error(f"{r.status_code} submit failed")
             logger.debug(f"{review_submit_payload}")
             logger.debug(f"{r.text}")
         return r.status_code
