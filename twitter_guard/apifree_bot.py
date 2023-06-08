@@ -1357,6 +1357,8 @@ class TwitterBot:
             response = TwitterJSON(response)
 
             data = response.data
+            if len(data)==0:
+                yield None
 
             if data.retweeters_timeline:
                 instructions = data.retweeters_timeline.timeline.instructions
@@ -1760,8 +1762,10 @@ class TwitterBot:
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries)
-
+            if entries is None:
+                return None
+            else:
+                yield from TwitterBot._text_from_entries(entries)
 
     @staticmethod
     def user_by_screen_name(screen_name):
