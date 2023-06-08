@@ -277,7 +277,7 @@ class TwitterLoginBot:
         # get the flow_token
         self.get_login_flow_token()
 
-        while int(self.login_flow_token.split(":")[-1]) != 17:
+        while int(self.login_flow_token.split(":")[-1]) != 13:
             self._do_task()
 
         # one more time to get longer ct0
@@ -354,7 +354,7 @@ class TwitterLoginBot:
         }
 
         self.account_duplication_check_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:11",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:7",
             "subtask_inputs": [
                 {
                     "subtask_id": "AccountDuplicationCheck",
@@ -364,7 +364,7 @@ class TwitterLoginBot:
         }
 
         self.get_full_ct0_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:17",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:13",
             "subtask_inputs": [],
         }
 
@@ -387,7 +387,7 @@ class TwitterLoginBot:
         }
 
         self.enter_alternative_id_payload = {
-            "flow_token": "g;167669570499095475:-1676695708216:wfmlDaSgvN5ydOS4EI5oJvr6:7",
+            "flow_token": "g;167669570499095475:-1676695708216:wfmlDaSgvN5ydOS4EI5oJvr6:5",
             "subtask_inputs": [
                 {
                     "subtask_id": "LoginEnterAlternateIdentifierSubtask",
@@ -397,7 +397,7 @@ class TwitterLoginBot:
         }
 
         self.enter_password_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:8",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:6",
             "subtask_inputs": [
                 {
                     "subtask_id": "LoginEnterPassword",
@@ -410,10 +410,10 @@ class TwitterLoginBot:
         self.tasks = {
             0: {"name": "LoginJsInstrumentationSubtask", "payload": self.get_sso_payload},
             1: {"name": "LoginEnterUserIdentifierSSO", "payload": self.enter_email_payload},
-            7: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
-            8: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
-            11: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
-            17: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
+            5: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
+            6: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
+            7: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
+            13: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
         }
 
     def _customize_headers(self, case):
