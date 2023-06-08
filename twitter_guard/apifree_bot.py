@@ -276,7 +276,7 @@ class TwitterLoginBot:
         # get the flow_token
         self.get_login_flow_token()
 
-        while int(self.login_flow_token.split(":")[-1]) != 17:
+        while int(self.login_flow_token.split(":")[-1]) != 13:
             self._do_task()
 
         # one more time to get longer ct0
@@ -353,7 +353,7 @@ class TwitterLoginBot:
         }
 
         self.account_duplication_check_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:11",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:7",
             "subtask_inputs": [
                 {
                     "subtask_id": "AccountDuplicationCheck",
@@ -363,7 +363,7 @@ class TwitterLoginBot:
         }
 
         self.get_full_ct0_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:17",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:13",
             "subtask_inputs": [],
         }
 
@@ -386,7 +386,7 @@ class TwitterLoginBot:
         }
 
         self.enter_alternative_id_payload = {
-            "flow_token": "g;167669570499095475:-1676695708216:wfmlDaSgvN5ydOS4EI5oJvr6:7",
+            "flow_token": "g;167669570499095475:-1676695708216:wfmlDaSgvN5ydOS4EI5oJvr6:5",
             "subtask_inputs": [
                 {
                     "subtask_id": "LoginEnterAlternateIdentifierSubtask",
@@ -396,7 +396,7 @@ class TwitterLoginBot:
         }
 
         self.enter_password_payload = {
-            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:8",
+            "flow_token": "g;167658632144249788:-1676586337028:ZJlPGfGY6fmt0YNIvwX5MhR5:6",
             "subtask_inputs": [
                 {
                     "subtask_id": "LoginEnterPassword",
@@ -409,10 +409,10 @@ class TwitterLoginBot:
         self.tasks = {
             0: {"name": "LoginJsInstrumentationSubtask", "payload": self.get_sso_payload},
             1: {"name": "LoginEnterUserIdentifierSSO", "payload": self.enter_email_payload},
-            7: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
-            8: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
-            11: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
-            17: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
+            5: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
+            6: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
+            7: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
+            13: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
         }
 
     def _customize_headers(self, case):
@@ -917,8 +917,7 @@ class TwitterBot:
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
         if r.status_code == 200:
-            logger.info("successfully sent block post!")
-        display_msg("block")
+            logger.info(f"block {user_id}: successfully sent block post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unblock_user(self, user_id):
@@ -928,8 +927,7 @@ class TwitterBot:
         unblock_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unblock_form)
         if r.status_code == 200:
-            logger.info("successfully sent unblock post!")
-        display_msg("unblock")
+            logger.info(f"unbock {user_id}: successfully sent unblock post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def mute_user(self, user_id):
@@ -939,8 +937,7 @@ class TwitterBot:
         mute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=mute_form)
         if r.status_code == 200:
-            logger.info("successfully sent mute post!")
-        display_msg("mute")
+            logger.info(f"mute {user_id}: successfully sent mute post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unmute_user(self, user_id):
@@ -950,8 +947,7 @@ class TwitterBot:
         unmute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unmute_form)
         if r.status_code == 200:
-            logger.info("successfully sent unmute post!")
-        display_msg("unmute")
+            logger.info(f"unmute {user_id}: successfully sent unmute post!")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def judge_users(self, users, block=False):
@@ -1242,8 +1238,8 @@ class TwitterBot:
         retweeted_tweet_id, retweeted_user_id = None, None
 
         if tweet_type == "quote" or tweet_type == "reply_by_quote":
-            quoted_tweet_id = int(result.legacy.quoted_status_id_str)
             try:
+                quoted_tweet_id = int(result.legacy.quoted_status_id_str)
                 #could be tombstone
                 if result.quoted_status_result.result.legacy is not None:
                     quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)
@@ -1355,6 +1351,8 @@ class TwitterBot:
             response = TwitterJSON(response)
 
             data = response.data
+            if len(data)==0:
+                yield None
 
             if data.retweeters_timeline:
                 instructions = data.retweeters_timeline.timeline.instructions
@@ -1758,8 +1756,10 @@ class TwitterBot:
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries)
-
+            if entries is None:
+                return None
+            else:
+                yield from TwitterBot._text_from_entries(entries)
 
     @staticmethod
     def user_by_screen_name(screen_name):

@@ -398,7 +398,7 @@ class ReportHandler:
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            logger.info(r.status_code, "validation click failed")
+            logger.error(f"{r.status_code}: validation click failed")
 
         return r.status_code
 
@@ -418,7 +418,7 @@ class ReportHandler:
             response = r.json()
             self.flow_token = response["flow_token"]
         else:
-            logger.info(f"{r.status_code} submit failed")
+            logger.error(f"{r.status_code} submit failed")
             logger.debug(f"{review_submit_payload}")
             logger.debug(f"{r.text}")
         return r.status_code
@@ -509,15 +509,17 @@ class ReportHandler:
 
         if self._handle_review_and_submit(context_text)!=200:
             return
-        self._handle_completion()
+        if self._handle_completion()!=200:
+            return
+        return 200
 
     def report_user(self, option_name, target="Me", user_id=None, screen_name=None, context_msg=None):
 
-        self._report(option_name, _ReportType.PROFILE, target=target, user_id=user_id, screen_name=screen_name, context_msg=context_msg)
+        return self._report(option_name, _ReportType.PROFILE, target=target, user_id=user_id, screen_name=screen_name, context_msg=context_msg)
 
     def report_tweet(self, option_name, target="Me", user_id=None, screen_name=None,tweet_id=None, context_msg=None):
         
-        self._report(option_name, _ReportType.TWEET, target=target, user_id=user_id, screen_name=screen_name, tweet_id=tweet_id, context_msg=context_msg)
+        return self._report(option_name, _ReportType.TWEET, target=target, user_id=user_id, screen_name=screen_name, tweet_id=tweet_id, context_msg=context_msg)
 
     def _report_generator(self, results, option_name, context_msg=None, by=None, skip_same_user=True):
         # report rate too high will make you black_listed
