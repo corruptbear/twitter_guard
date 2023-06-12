@@ -189,6 +189,7 @@ class TwitterUserProfile:
     favourites_count: int = dataclasses.field(default=None)
     days_since_registration: int = dataclasses.field(init=False, default=None)
     display_name: str = dataclasses.field(default=None, metadata={"keyword_only": True})
+    blocked: bool = dataclasses.field(default=None)
 
     def __post_init__(self):
         if self.created_at is not None:
@@ -572,6 +573,7 @@ class TwitterBot:
         "user_by_screen_name": "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName",
         "tweet_detail": "https://twitter.com/i/api/graphql/7d8fexGPbM0BRc5DkacJqA/TweetDetail",
         "combined_lists":"https://twitter.com/i/api/graphql/rIxum3avpCu7APi7mxTNjw/CombinedLists",
+        "delete_tweet": "https://twitter.com/i/api/graphql/VaenaVgh5q5ih7kvyVjgtg/DeleteTweet",
     }
 
     jot_form_success = {
@@ -1192,6 +1194,7 @@ class TwitterBot:
                 media_count=user.media_count,
                 favourites_count=user.favourites_count,
                 display_name=user.name,
+                blocked = user.blocking,
             )
             if result.legacy.profile_interstitial_type == "fake_account":
                 return "fake_account", p
@@ -1491,6 +1494,24 @@ class TwitterBot:
 
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
             yield from self._users_from_entries(entries)
+
+    def delete_tweet(self, tweet_id):
+        headers = self._json_headers()
+        url = TwitterBot.urls["delete_tweet"]
+        form = {
+            "variables": {
+                "tweet_id": str(tweet_id),
+                "dark_request": False,
+            },
+            "queryId": "VaenaVgh5q5ih7kvyVjgtg"
+        }
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
+        logger.debug(f"{r.status_code}, {r.text}")
+
+        if r.status_code==200:
+            response = r.json()
+            response = TwitterJSON(response)
+            return response.data.delete_tweet.tweet_results
 
     def _tweet_creation_form(self, text):
         form = copy.deepcopy(TwitterBot.create_tweet_form)
