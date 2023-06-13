@@ -998,6 +998,7 @@ class TwitterBot:
         logger.debug(f"status_code: {r.status_code}, length: {r.headers['content-length']}")
 
         result = r.json()
+        logger.debug(f"{result}")
         result = TwitterJSON(result)
 
         logger.debug(f"result keys: {result.keys()}")
@@ -1046,12 +1047,13 @@ class TwitterBot:
             for notification in notifications.values():
                 # print(notification)
                 # print(notification.message.text)
+                notification_id_to_user_id[notification.id] = []
                 for e in notification.message.entities:
                     #there might be notifications that have non-empty entities field but do not contain any user
                     if e.ref is not None:
                         entry_user_id = int(e.ref.user.id)
                         # add the users appearing in notifications (do not include replies)
-                        notification_id_to_user_id[notification.id] = entry_user_id
+                        notification_id_to_user_id[notification.id].append(entry_user_id)
 
         logger.info(f"TIMELINE ID: {result.timeline.id}")
         instructions = result.timeline.instructions  # instructions is a list
@@ -1084,14 +1086,16 @@ class TwitterBot:
                 "generic_magic_fanout_creator_subscription",
             ]:
                 entry_id = entry.entryId[13:]
-                entry_user_id = notification_id_to_user_id[entry_id]
-                logger.info(f"timeline_non_cursor_notification {entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
-                interacting_users[entry_id] = {
-                    "sort_index": entry.sortIndex,
-                    "user_id": entry_user_id,
-                    "user": logged_users[entry_user_id],
-                    "event_type": entry.content.item.clientEventInfo.element,
-                }
+                entry_user_ids = notification_id_to_user_id[entry_id]
+                for entry_user_id in entry_user_ids:
+                    logger.info(f"timeline_non_cursor_notification {entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
+                    expanded_entry_id = str(entry_id)+"_"+str(entry_user_id)
+                    interacting_users[expanded_entry_id] = {
+                        "sort_index": entry.sortIndex,
+                        "user_id": entry_user_id,
+                        "user": logged_users[entry_user_id],
+                        "event_type": entry.content.item.clientEventInfo.element,
+                    }
 
         # user_replied_to_your_tweet/user_quoted_your_tweet
         for entry in non_cursor_tweet_entries:
@@ -1151,7 +1155,9 @@ class TwitterBot:
                 #print(interacting_users[entry_id])
                 event_time = datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"])//1000).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
                 user_dict =  dataclasses.asdict(interacting_users[entry_id]["user"])
-                backup_events[event_time] = {"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']}
+                if event_time not in backup_events:
+                    backup_events[event_time] = []
+                backup_events[event_time].append({"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']})
             if len(backup_events)>0:
                 save_yaml(backup_events,self._backup_log_path,'a')
 
