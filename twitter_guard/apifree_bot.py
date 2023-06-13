@@ -71,7 +71,7 @@ class DESAdapter(HTTPAdapter):
         return super(DESAdapter, self).proxy_manager_for(*args, **kwargs)
 
 def display_session_cookies(s):
-    display_msg("print cookies")
+    logger.info("print cookies")
     for x in s.cookies:
         logger.debug(f"{x}")
 
@@ -239,7 +239,7 @@ class SessionType:
     
 
 class TwitterLoginBot:
-    def __init__(self, email, password, screenname, phonenumber, cookie_path=None):
+    def __init__(self, email, password, screenname, phonenumber=None, cookie_path=None):
         self._headers = {
             "Host": "api.twitter.com",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
@@ -281,7 +281,7 @@ class TwitterLoginBot:
             self._do_task()
 
         # one more time to get longer ct0
-        display_msg("update to full ct0")
+        logger.debug("update to full ct0")
         self._do_task()
 
         # save the cookies for reuse
@@ -453,7 +453,7 @@ class TwitterLoginBot:
         ]
 
         pickle.dump(full_cookie, open(self._cookie_path, "wb"))
-        display_msg("cookies from requests saved")
+        logger.info("cookies from requests saved")
 
     def _prepare_next_login_task(self, r):
         logger.info(r.status_code)
@@ -468,7 +468,7 @@ class TwitterLoginBot:
 
     def _do_task(self):
         task = int(self.login_flow_token.split(":")[-1])
-        display_msg(self.tasks[task]["name"])
+        logger.debug(self.tasks[task]["name"])
 
         # establish session and prepare for enter email
         if task == 0:
@@ -527,11 +527,11 @@ class TwitterLoginBot:
             self._headers["x-guest-token"] = str(self._session.cookies.get("gt"))
 
         except:
-            display_msg("cannot find guest token from the webpage")
+            logger.debug("cannot find guest token from the webpage")
             r = self._session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=self._headers)
             if r.status_code == 200:
                 self._headers["x-guest-token"] = r.json()["guest_token"]
-                display_msg("got guest token from the endpoint")
+                logger.debug("got guest token from the endpoint")
 
         # the ct0 value is just a random 32-character string generated from random bytes at client side
         self._session.cookies.set("ct0", genct0())
@@ -805,7 +805,7 @@ class TwitterBot:
         #self.reporter = ReportHandler(self._headers, self._session)
 
     def _set_selenium_cookies(self, cookies):
-        display_msg("setting cookies")
+        logger.debug("setting cookies")
         for x in cookies:
             logger.debug(f"{x}")
             otherinfo = dict()
@@ -824,7 +824,7 @@ class TwitterBot:
 
     def _load_cookies(self):
         if self._cookie_path.endswith('.pkl'):
-            display_msg("loading cookies")
+            logger.debug("loading cookies")
             cookies = pickle.load(open(self._cookie_path, "rb"))
             self._set_selenium_cookies(cookies)
         elif self._cookie_path.endswith('.txt'):
@@ -846,18 +846,21 @@ class TwitterBot:
             self._cookie_path = os.path.join(os.path.dirname(self._cookie_path),"sl_cookies.pkl")
 
         try:
-            display_msg("trying using requests to get cookies")
+            logger.info("trying using requests to get cookies")
+            if 'phonenumber' in self._config_dict["login"]:
+                phonenumber = self._config_dict["login"]["phonenumber"]
+            else:
+                phonenumber = None
             b = TwitterLoginBot(
                 self._config_dict["login"]["email"],
                 self._config_dict["login"]["password"],
                 self._config_dict["login"]["screenname"],
-                self._config_dict["login"]["phonenumber"],
+                phonenumber = phonenumber,
                 cookie_path=self._cookie_path,
             )
             self._load_cookies()
         except:
-            display_msg("trying using selenium to get cookies")
-
+            logger.info("trying using selenium to get cookies")
 
     def _select_search_method(self):
         try:
@@ -871,8 +874,6 @@ class TwitterBot:
             logger.info("legacy search selected")
 
     def get_badge_count(self):
-        display_msg("get badge count")
-
         # display_session_cookies(self._session)
         url = TwitterBot.urls["badge_count"]
         badge_form = TwitterBot.badge_form
@@ -986,10 +987,11 @@ class TwitterBot:
         notification_all_form = TwitterBot.notification_all_form
         r = self._session.get(url, headers=self._headers, params=notification_all_form)
 
-        display_msg("notifications/all.json")
+        logger.info("notifications/all.json")
         logger.debug(f"status_code: {r.status_code}, length: {r.headers['content-length']}")
 
         result = r.json()
+        logger.debug(f"{result}")
         result = TwitterJSON(result)
 
         logger.debug(f"result keys: {result.keys()}")
@@ -1032,21 +1034,20 @@ class TwitterBot:
         interacting_users = {}
         notification_id_to_user_id = {}
 
-        display_msg("globalObjects['notifications']")
         if result.globalObjects.notifications:
             notifications = result.globalObjects.notifications
             # userid and sortindex available; but not interaction type
             for notification in notifications.values():
                 # print(notification)
                 # print(notification.message.text)
+                notification_id_to_user_id[notification.id] = []
                 for e in notification.message.entities:
                     #there might be notifications that have non-empty entities field but do not contain any user
                     if e.ref is not None:
                         entry_user_id = int(e.ref.user.id)
                         # add the users appearing in notifications (do not include replies)
-                        notification_id_to_user_id[notification.id] = entry_user_id
+                        notification_id_to_user_id[notification.id].append(entry_user_id)
 
-        display_msg("timeline")
         logger.info(f"TIMELINE ID: {result.timeline.id}")
         instructions = result.timeline.instructions  # instructions is a list
 
@@ -1068,7 +1069,6 @@ class TwitterBot:
         # includes reply, quoted retweet
         non_cursor_tweet_entries = [x for x in non_cursor_entries if x.content.item.content.tweet]
 
-        display_msg("timeline: non_cursor_notification")
         # users_liked_your_tweet/user_liked_multiple_tweets/user_liked_tweets_about_you/generic_login_notification/generic_report_received/users_retweeted_your_tweet ; no userid is included in these entries
         for entry in non_cursor_notification_entries:
             if entry.content.item.clientEventInfo.element not in [
@@ -1079,21 +1079,22 @@ class TwitterBot:
                 "generic_magic_fanout_creator_subscription",
             ]:
                 entry_id = entry.entryId[13:]
-                entry_user_id = notification_id_to_user_id[entry_id]
-                logger.info(f"{entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
-                interacting_users[entry_id] = {
-                    "sort_index": entry.sortIndex,
-                    "user_id": entry_user_id,
-                    "user": logged_users[entry_user_id],
-                    "event_type": entry.content.item.clientEventInfo.element,
-                }
+                entry_user_ids = notification_id_to_user_id[entry_id]
+                for entry_user_id in entry_user_ids:
+                    logger.info(f"timeline_non_cursor_notification {entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
+                    expanded_entry_id = str(entry_id)+"_"+str(entry_user_id)
+                    interacting_users[expanded_entry_id] = {
+                        "sort_index": entry.sortIndex,
+                        "user_id": entry_user_id,
+                        "user": logged_users[entry_user_id],
+                        "event_type": entry.content.item.clientEventInfo.element,
+                    }
 
-        display_msg("timeline: non_cursor_tweets")
         # user_replied_to_your_tweet/user_quoted_your_tweet
         for entry in non_cursor_tweet_entries:
             entry_id = entry.entryId[13:]
             entry_user_id = id_indexed_tweets[int(entry.content.item.content.tweet.id)].user_id
-            logger.info(f"{entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
+            logger.info(f"timeline_non_cursor_tweets {entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
             # add the users replying to me
             interacting_users[entry_id] = {
                 "sort_index": entry.sortIndex,
@@ -1102,12 +1103,10 @@ class TwitterBot:
                 "event_type": entry.content.item.clientEventInfo.element,
             }
 
-        display_msg("all interactions")
         # sort by time from latest to earliest
         for x in sorted(interacting_users.items(), key=lambda item: item[1]["sort_index"], reverse=True):
-            logger.info(f"{x[1]['user'].screen_name:<16} {x[1]['event_type']}")
+            logger.info(f"all_interactions {x[1]['user'].screen_name:<16} {x[1]['event_type']}")
 
-        display_msg("check users interacting with me")
         """
         print("\ntweets VS non_cursor_entries", len(tweets), len(non_cursor_entries))
         print(
@@ -1117,10 +1116,9 @@ class TwitterBot:
         )
         print("number of convos", len(convo))
         """
-        display_msg("cursors")
         for entry in cursor_entries:
             cursor = entry.content.operation.cursor
-            logger.debug(f"{entry.sortIndex} {cursor}")
+            logger.debug(f"cursors: {entry.sortIndex} {cursor}")
             if cursor.cursorType == "Top":
                 self.latest_sortindex = entry.sortIndex
 
@@ -1150,7 +1148,9 @@ class TwitterBot:
                 #print(interacting_users[entry_id])
                 event_time = datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"])//1000).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
                 user_dict =  dataclasses.asdict(interacting_users[entry_id]["user"])
-                backup_events[event_time] = {"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']}
+                if event_time not in backup_events:
+                    backup_events[event_time] = []
+                backup_events[event_time].append({"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']})
             if len(backup_events)>0:
                 save_yaml(backup_events,self._backup_log_path,'a')
 
@@ -1431,8 +1431,6 @@ class TwitterBot:
         """
         user_id = numerical_id(user_id)
 
-        display_msg("get following")
-
         headers = self._json_headers()
 
         url = TwitterBot.urls["following"]
@@ -1452,8 +1450,6 @@ class TwitterBot:
         """
         user_id = numerical_id(user_id)
 
-        display_msg("get followers")
-
         headers = self._json_headers()
 
         url = TwitterBot.urls["followers"]
@@ -1472,8 +1468,6 @@ class TwitterBot:
         Returns a list of TwitterUserProfile.
         """
         # needs to have the br decoding library installed for requests to handle br compressed results
-
-        display_msg("get retweeters")
 
         headers = self._json_headers()
 
@@ -1539,7 +1533,7 @@ class TwitterBot:
         return headers
 
     def create_tweet(self, text):
-        display_msg("tweet")
+        logger.debug("tweet")
 
         headers = self._tweet_creation_headers()
         form = self._tweet_creation_form(text)
@@ -1557,7 +1551,7 @@ class TwitterBot:
             return response.data.create_tweet.tweet_results.result.rest_id
 
     def reply_to_tweet(self, tweet_id, text):
-        display_msg("reply")
+        logger.debug("reply")
 
         headers = self._reply_creation_headers()
         form = self._reply_creation_form(tweet_id, text)
@@ -1622,7 +1616,7 @@ class TwitterBot:
     @staticmethod
     def search_timeline_graphql(query):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-        display_msg("search (login free)")
+        logger.info("search (login free)")
 
         #url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
         url = "https://twitter.com/i/api/graphql/WeHGEHYtJA0sfOOFIBMt8g/SearchTimeline"
@@ -1767,7 +1761,7 @@ class TwitterBot:
     @staticmethod
     def tweet_detail(tweet_id):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-        display_msg("get tweet details")
+        logger.debug("get tweet details")
 
         url = TwitterBot.urls["tweet_detail"]     
         form = copy.deepcopy(TwitterBot.tweet_detail_form)
@@ -1788,8 +1782,6 @@ class TwitterBot:
         Returns the account status and the user profile, given user's screen_name.
         """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-
-        display_msg("get user by screen name")
 
         url = TwitterBot.urls["user_by_screen_name"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -1817,8 +1809,6 @@ class TwitterBot:
         Returns the account status and the user profile, given user's id.
         """
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-
-        display_msg("get user by rest id")
 
         url = TwitterBot.urls["user_by_rest_id"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
