@@ -1508,9 +1508,16 @@ class TwitterBot:
             response = TwitterJSON(response)
             return response.data.delete_tweet.tweet_results
 
-    def _tweet_creation_form(self, text):
+    def _tweet_creation_form(self, text, media_ids=None):
         form = copy.deepcopy(TwitterBot.create_tweet_form)
         form["variables"]["tweet_text"] = text
+
+        if media_ids is not None:
+            for media_id in media_ids:
+                form["variables"]["media"]["media_entities"].append({
+                    "media_id": media_id,
+                    "tagged_users": []
+                })
 
         form["features"]["view_counts_everywhere_api_enabled"] = False
         del form["features"]["responsive_web_twitter_blue_verified_badge_is_enabled"]
@@ -1539,11 +1546,74 @@ class TwitterBot:
         headers["Referer"] = "https://twitter.com/compose/tweet"
         return headers
 
-    def create_tweet(self, text):
-        logger.debug("tweet")
+    def _upload_image(self, path):
+        #INIT: regular header
+        headers = copy.deepcopy(self._headers)
+        headers["Host"]="upload.twitter.com"
+        url = "https://upload.twitter.com/i/media/upload.json"
+        try:
+            with open(path,"rb") as f:
+                binary_data = f.read()
+            total_img_size = len(binary_data)
+            #file too large!
+            if total_img_size > 5242880:
+                return None
+            img_suffix = image_file_type(path).lower()
+            upload_init_form = {"command": "INIT", "total_bytes": total_img_size, "media_type": f"image/{img_suffix}", "media_category": "tweet_image"}
+            r = self._session.post(url, headers=headers, params=upload_init_form)
+            logger.debug(f"{r.status_code} {r.text}")
+            if r.status_code!=202:
+                return None
+            response = r.json()
+            media_id = response["media_id"]
 
+            #APPEND
+            chunksize = 2048000
+            import math
+            n_segments = math.ceil(total_img_size/chunksize)
+            current_segment = 0
+            starting_byte = 0
+            ending_byte = 0
+            #the headers content-type is automatically set to json after the last request; have to delete it for correct multi-part form post
+            del headers["Content-Type"]
+            while ending_byte < total_img_size:
+                ending_byte = min(total_img_size,starting_byte+chunksize)
+                logger.debug(f"{starting_byte}, {ending_byte}")
+                upload_append_form = {"command": "APPEND", "media_id": media_id, "segment_index": current_segment}
+                upload_file = {
+                    'media': ("blob", binary_data[starting_byte:ending_byte]),
+                }
+                r = self._session.post(url, headers=headers, params=upload_append_form, files=upload_file)
+                if r.status_code!=204:
+                    return None
+                logger.debug(f"{r.status_code} {r.text}")
+                starting_byte = ending_byte
+                current_segment+=1
+
+            #FINALIZE
+            #del headers["Content-Type"]
+            upload_finalize_form = {"command": "FINALIZE", "media_id": media_id}
+            r = self._session.post(url, headers=headers, params=upload_finalize_form)
+            logger.debug(f"{r.status_code} {r.text}")
+            if r.status_code!=201:
+                return None
+            else:
+                return media_id
+        except:
+            return None
+
+    def create_tweet(self, text, image_paths = None):
+        logger.debug("tweet")
         headers = self._tweet_creation_headers()
-        form = self._tweet_creation_form(text)
+        if image_paths is not None:
+            #ignore extra paths
+            image_paths = image_paths[:4]
+            media_ids = [self._upload_image(image_path) for image_path in image_paths]
+            #ignore upload failures
+            media_ids = [x for x in media_ids if x is not None]
+        else:
+            media_ids = None
+        form = self._tweet_creation_form(text,media_ids=media_ids)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 

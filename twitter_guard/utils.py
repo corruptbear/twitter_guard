@@ -7,10 +7,15 @@ from datetime import datetime, timezone
 import re
 
 import pytz
+from PIL import Image
 
 def display_msg(msg):
     print(f"\n{msg:.>50}")
 
+def image_file_type(filename):
+    image = Image.open(filename)
+    image_type = image.format
+    return image_type
 
 def save_yaml(dictionary, filepath, write_mode):
     try:
