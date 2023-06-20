@@ -304,6 +304,8 @@ class ReportHandler:
         if screen_name is not None and user_id is None:
             logger.info("query to get user id...")
             user_id = TwitterBot.id_from_screen_name(screen_name)
+        if user_id is not None and screen_name is None:
+            screen_name = TwitterBot.screen_name_from_id(user_id)
         # if only tweet_id is available
         if screen_name is None and user_id is None and tweet_id is not None:
             logger.info("getting info from tweet...")

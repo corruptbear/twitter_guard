@@ -1859,5 +1859,15 @@ class TwitterBot:
             status, user_profile = values
             return user_profile.user_id
 
+    @staticmethod
+    def screen_name_from_id(user_id):
+        """
+        Convert screen name to user id
+        """
+        values = TwitterBot.user_by_id(user_id)
+        if values:
+            status, user_profile = values
+            return user_profile.screen_name
+
 if __name__ == "__main__":
     pass
