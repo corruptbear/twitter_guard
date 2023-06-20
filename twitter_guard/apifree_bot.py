@@ -433,28 +433,38 @@ class TwitterLoginBot:
             self._headers["Origin"] = "https://twitter.com"
             self._headers["Content-Type"] = "application/json"
 
+    def save_cookies_netscape_txt(self, cookie_path):
+        with open(cookie_path, 'w') as f:
+            f.write('# Netscape HTTP Cookie File\n')
+            for x in self._session.cookies:
+                #DOMAIN(str) SUBDOMAIN?(bool) path(str) secure(bool) expire(int) name value
+                f.write(f'.twitter.com\tTRUE\t{x.path}\t{str(x.secure).upper()}\t2147483647\t{x.name}\t{x.value}\n')
+
     def save_cookies(self):
         # convert the cookiejar object to a dictionary; among duplicated entries, only the latest entry is kept
         cookie_dict = requests.utils.dict_from_cookiejar(self._session.cookies)
         # convert the dictionary back to a cookiejar object
         unique_cookiejar = requests.utils.cookiejar_from_dict(cookie_dict)
-
         self._session.cookies = unique_cookiejar
 
-        # make it compatible with selenium cookie
-        full_cookie = [
-            {
-                "name": x.name,
-                "value": x.value,
-                "secure": x.secure,
-                "domain": ".twitter.com",
-                "path": x.path,
-            }
-            for x in self._session.cookies
-        ]
+        if self._cookie_path.endswith(".txt"):
+            self.save_cookies_netscape_txt(self._cookie_path)
+            logger.info("cookies from requests saved as netscape txt file")
+        else:
+            # make it compatible with selenium cookie
+            full_cookie = [
+                {
+                    "name": x.name,
+                    "value": x.value,
+                    "secure": x.secure,
+                    "domain": ".twitter.com",
+                    "path": x.path,
+                }
+                for x in self._session.cookies
+            ]
 
-        pickle.dump(full_cookie, open(self._cookie_path, "wb"))
-        logger.info("cookies from requests saved")
+            pickle.dump(full_cookie, open(self._cookie_path, "wb"))
+            logger.info("cookies from requests saved as pickle file")
 
     def _prepare_next_login_task(self, r):
         logger.info(r.status_code)
@@ -843,9 +853,6 @@ class TwitterBot:
         Try to get the cookies through requests only TwitterLoginBot first.
         If it does not work, use SeleniumTwitterBot to get the cookies
         """
-        if not self._cookie_path.endswith(".pkl"):
-            self._cookie_path = os.path.join(os.path.dirname(self._cookie_path),"sl_cookies.pkl")
-
         try:
             logger.info("trying using requests to get cookies")
             if 'phonenumber' in self._config_dict["login"]:
