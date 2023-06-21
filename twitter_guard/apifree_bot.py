@@ -406,6 +406,13 @@ class TwitterLoginBot:
                 }
             ],
         }
+        self.acid_payload = {
+            "subtask_inputs": [
+                {
+                    "subtask_id": "LoginAcid",
+                    "enter_text": {"text": "", "link": "next_link"},
+                }],
+        }
 
         # may be useful in the future if the mapping if subject to change
         self.tasks = {
@@ -414,6 +421,7 @@ class TwitterLoginBot:
             5: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
             6: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
             7: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
+            8: {"name": "LoginAcid", "payload": self.acid_payload},
             13: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
         }
 
@@ -516,6 +524,8 @@ class TwitterLoginBot:
             payload = self.tasks[task]["payload"]
 
             payload["flow_token"] = self.login_flow_token
+            if task==8:
+                payload["subtask_inputs"][0]["enter_text"]["text"]=input(f"Enter Twitter Confirmation Code sent to {self._email}")
 
             r = self._session.post(
                 "https://api.twitter.com/1.1/onboarding/task.json",
