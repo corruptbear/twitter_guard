@@ -1515,7 +1515,7 @@ class TwitterBot:
             response = TwitterJSON(response)
             return response.data.delete_tweet.tweet_results
 
-    def _tweet_creation_form(self, text, media_ids=None):
+    def _tweet_creation_form(self, text, media_ids=None, conversation_control = None):
         form = copy.deepcopy(TwitterBot.create_tweet_form)
         form["variables"]["tweet_text"] = text
 
@@ -1525,6 +1525,8 @@ class TwitterBot:
                     "media_id": media_id,
                     "tagged_users": []
                 })
+        if conversation_control is not None:
+            form["variables"]["conversation_control"] = {"mode": conversation_control}
 
         form["features"]["view_counts_everywhere_api_enabled"] = False
         del form["features"]["responsive_web_twitter_blue_verified_badge_is_enabled"]
@@ -1609,7 +1611,8 @@ class TwitterBot:
         except:
             return None
 
-    def create_tweet(self, text, image_paths = None):
+    def create_tweet(self, text, image_paths = None, conversation_control = None):
+        #conversation_control vals: ByInvitation, Community
         logger.debug("tweet")
         headers = self._tweet_creation_headers()
         if image_paths is not None:
@@ -1620,7 +1623,7 @@ class TwitterBot:
             media_ids = [x for x in media_ids if x is not None]
         else:
             media_ids = None
-        form = self._tweet_creation_form(text,media_ids=media_ids)
+        form = self._tweet_creation_form(text,media_ids=media_ids, conversation_control = conversation_control)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
