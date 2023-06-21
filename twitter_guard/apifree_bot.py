@@ -1379,7 +1379,7 @@ class TwitterBot:
 
             data = response.data
             if len(data)==0:
-                yield None
+                return
 
             if data.retweeters_timeline:
                 instructions = data.retweeters_timeline.timeline.instructions
@@ -1391,8 +1391,10 @@ class TwitterBot:
                 result = data.user.result
                 if result.timeline_v2:
                     instructions = result.timeline_v2.timeline.instructions
-                else:
+                elif result.timeline:
                     instructions = result.timeline.timeline.instructions
+                else:
+                    return
 
             add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"] 
             if len(add_instructions )!=0:
