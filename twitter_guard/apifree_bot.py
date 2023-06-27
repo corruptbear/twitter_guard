@@ -1221,6 +1221,8 @@ class TwitterBot:
             return "normal", p
 
         if result.__typename == "UserUnavailable":
+            if not result.unavailable_message and result.reason=="NoReason":
+                return "unavailable_for_no_reason", None
             if "suspends" in result.unavailable_message.text:
                 return "suspended", None
 
