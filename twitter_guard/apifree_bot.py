@@ -588,7 +588,7 @@ class TwitterBot:
         "retweeters": "https://twitter.com/i/api/graphql/ViKvXirbgcKs6SfF5wZ30A/Retweeters",
         "followers": "https://twitter.com/i/api/graphql/utPIvA97eaEvxfra_PQz_A/Followers",
         "following": "https://twitter.com/i/api/graphql/AmvGuDw_fxEbJtEXie4OkA/Following",
-        "tweets_replies": "https://twitter.com/i/api/graphql/pNl8WjKAvaegIoVH--FuoQ/UserTweetsAndReplies",
+        "tweets_replies": "https://twitter.com/i/api/graphql/ahLGvWSvDCr-57-E8GXGCQ/UserTweetsAndReplies",
         "user_by_rest_id": "https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId",
         "user_by_screen_name": "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName",
         "tweet_detail": "https://twitter.com/i/api/graphql/7d8fexGPbM0BRc5DkacJqA/TweetDetail",
@@ -665,6 +665,10 @@ class TwitterBot:
         "responsive_web_text_conversations_enabled": False,
         "longform_notetweets_richtext_consumption_enabled": False,
         "responsive_web_enhance_cards_enabled": False,
+        "rweb_lists_timeline_redesign_enabled": True,
+        "creator_subscriptions_tweet_preview_api_enabled":True,
+        "responsive_web_twitter_article_tweet_consumption_enabled":True,
+        "longform_notetweets_inline_media_enabled":True,
     }
 
     combined_lists_form = {
@@ -727,15 +731,16 @@ class TwitterBot:
             # "cursor": "HCaAgICU9oDCqS0AAA==",
             "includePromotedContent": True,
             "withCommunity": True,
-            "withSuperFollowsUserFields": True,
-            "withDownvotePerspective": False,
-            "withReactionsMetadata": False,
-            "withReactionsPerspective": False,
-            "withSuperFollowsTweetFields": True,
+            #"withSuperFollowsUserFields": True,
+            #"withDownvotePerspective": False,
+            #"withReactionsMetadata": False,
+            #"withReactionsPerspective": False,
+            #"withSuperFollowsTweetFields": True,
             "withVoice": True,
             "withV2Timeline": True,
         },
         "features": standard_graphql_features,
+        "fieldToggles": {"withArticleRichContentState":False},
     }
 
     default_headers = {
@@ -1339,7 +1344,7 @@ class TwitterBot:
                                 if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
                                     yield from TwitterBot._tweet_from_result(result)
                             if result.__typename == "TweetWithVisibilityResults":
-                                yield from TwtterBot._tweet_from_result(result.tweet)
+                                yield from TwitterBot._tweet_from_result(result.tweet)
             elif content.entryType == "TimelineTimelineItem":
                 itemContent = content.itemContent
                 if itemContent.__typename == "TimelineTweet":
@@ -1433,14 +1438,15 @@ class TwitterBot:
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
             yield from TwitterBot._text_from_entries(entries, user_id = user_id)
 
-    @staticmethod
-    def get_tweets_replies(user_id):
+    #@staticmethod
+    #def get_tweets_replies(user_id):
+    def get_tweets_replies(self, user_id):
         """
         Gets the texts from the user's tweets and replies tab.
         """
         user_id = numerical_id(user_id)
 
-        # headers = self._json_headers()
+        headers = self._json_headers()
         url = TwitterBot.urls["tweets_replies"]
 
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
@@ -1448,9 +1454,14 @@ class TwitterBot:
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
         form["variables"]["userId"] = str(user_id)
+        form["features"]["responsive_web_graphql_exclude_directive_enabled"] = True
+        form["features"]["responsive_web_twitter_article_tweet_consumption_enabled"] = False
+        form["features"]["tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries, user_id = user_id)
+        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        #    yield from TwitterBot._text_from_entries(entries, user_id = user_id)
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
+            yield from self._text_from_entries(entries, user_id = user_id)
 
     def get_following(self, user_id):
         """
