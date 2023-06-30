@@ -1379,6 +1379,7 @@ class TwitterBot:
                 logger.debug(f"{r.request.url}")
                 logger.debug(f"{headers}")
                 logger.debug(f"{r.status_code}, {r.text}")
+                r.raise_for_status()
                 break
 
             response = r.json()
@@ -1560,8 +1561,8 @@ class TwitterBot:
 
         return form
 
-    def _reply_creation_form(self, tweet_id, text):
-        form = self._tweet_creation_form(text)
+    def _reply_creation_form(self, tweet_id, text, media_ids = None):
+        form = self._tweet_creation_form(text, media_ids = media_ids)
         form["variables"]["reply"] = {"in_reply_to_tweet_id": str(tweet_id), "exclude_reply_user_ids": []}
         form["variables"]["batch_compose"] = "BatchSubsequent"
 
@@ -1636,10 +1637,7 @@ class TwitterBot:
         except:
             return None
 
-    def create_tweet(self, text, image_paths = None, conversation_control = None):
-        #conversation_control vals: ByInvitation, Community
-        logger.debug("tweet")
-        headers = self._tweet_creation_headers()
+    def _upload_images(self,image_paths = None):
         if image_paths is not None:
             #ignore extra paths
             image_paths = image_paths[:4]
@@ -1648,6 +1646,13 @@ class TwitterBot:
             media_ids = [x for x in media_ids if x is not None]
         else:
             media_ids = None
+        return media_ids
+
+    def create_tweet(self, text, image_paths = None, conversation_control = None):
+        #conversation_control vals: ByInvitation, Community
+        logger.debug("tweet")
+        headers = self._tweet_creation_headers()
+        media_ids = self._upload_images(image_paths)
         form = self._tweet_creation_form(text,media_ids=media_ids, conversation_control = conversation_control)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
@@ -1662,11 +1667,12 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def reply_to_tweet(self, tweet_id, text):
+    def reply_to_tweet(self, tweet_id, text, image_paths = None):
         logger.debug("reply")
 
         headers = self._reply_creation_headers()
-        form = self._reply_creation_form(tweet_id, text)
+        media_ids = self._upload_images(image_paths)
+        form = self._reply_creation_form(tweet_id, text,media_ids=media_ids)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
@@ -1680,16 +1686,17 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def create_thread(self, texts):
-        initial_text = texts[0]
-        rest_texts = texts[1:]
+    def create_thread(self, tweets):
+        #tweets: a list of dicts
+        initial_tweet = tweets[0]
+        rest_tweets = tweets[1:]
 
-        tweet_id = self.create_tweet(initial_text)
-        sleep(random.randint(10, 30))
+        tweet_id = self.create_tweet(initial_tweet["text"],image_paths = initial_tweet["imgs"])
+        sleep(random.randint(5, 25))
 
-        for text in rest_texts:
-            tweet_id = self.reply_to_tweet(tweet_id, text)
-            sleep(random.randint(10, 30))
+        for tweet in rest_tweets:
+            tweet_id = self.reply_to_tweet(tweet_id, tweet["text"], image_paths = tweet["imgs"])
+            sleep(random.randint(5, 25))
 
     @staticmethod
     def tmp_session_headers():
@@ -1724,11 +1731,12 @@ class TwitterBot:
 
         return TwitterBot.tmp_session, TwitterBot.tmp_headers
 
-       
-    @staticmethod
-    def search_timeline_graphql(query):
+
+    #@staticmethod
+    #def search_timeline_graphql(query):
+    def search_timeline_graphql(self, query):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
-        logger.info("search (login free)")
+        logger.info("search (graphql, logged in)")
 
         #url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
         url = "https://twitter.com/i/api/graphql/WeHGEHYtJA0sfOOFIBMt8g/SearchTimeline"
@@ -1746,7 +1754,8 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = self._json_headers()):
             yield from TwitterBot._text_from_entries(entries)
 
     #TODO: not finished
@@ -1870,8 +1879,9 @@ class TwitterBot:
         #print("\nheaders:::",r.request.headers)
         #print("\nresponse headers:::", r.headers)
 
-    @staticmethod
-    def tweet_detail(tweet_id):
+    #@staticmethod
+    #def tweet_detail(tweet_id):
+    def tweet_detail(self, tweet_id):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.debug("get tweet details")
 
@@ -1882,18 +1892,20 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = False
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = self._json_headers()):
             if entries is None:
                 return None
             else:
                 yield from TwitterBot._text_from_entries(entries)
 
-    @staticmethod
-    def user_by_screen_name(screen_name):
+    #@staticmethod
+    #def user_by_screen_name(screen_name):
+    def user_by_screen_name(self, screen_name):
         """
         Returns the account status and the user profile, given user's screen_name.
         """
-        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = TwitterBot.urls["user_by_screen_name"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -1902,7 +1914,8 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = False
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        r = self._session.get(url, headers = self._json_headers(),params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -1911,12 +1924,13 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    @staticmethod
-    def user_by_id(user_id):
+    #@staticmethod
+    #def user_by_id(user_id):
+    def user_by_id(self, user_id):
         """
         Returns the account status and the user profile, given user's id.
         """
-        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = TwitterBot.urls["user_by_rest_id"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -1925,7 +1939,8 @@ class TwitterBot:
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
 
-        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        r = self._session.get(url, headers = self._json_headers(),params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -1934,42 +1949,50 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    @staticmethod
-    def status_by_screen_name(screen_name):
+    #@staticmethod
+    #def status_by_screen_name(screen_name):
+    def status_by_screen_name(self, screen_name):
         """
         Probe the status of an account, given user's screen_name.
         """
-        values = TwitterBot.user_by_screen_name(screen_name)
+        #values = TwitterBot.user_by_screen_name(screen_name)
+        values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return status
 
-    @staticmethod
-    def status_by_id(user_id):
+    #@staticmethod
+    #def status_by_id(user_id):
+    def status_by_id(self, user_id):
         """
         Probe the status of an account, given user's id.
         """
-        values = TwitterBot.user_by_id(user_id)
+        #values = TwitterBot.user_by_id(user_id)
+        values = self.user_by_id(user_id)
         if values:
             status, user_profile = values
             return status
 
-    @staticmethod
-    def id_from_screen_name(screen_name):
+    #@staticmethod
+    #def id_from_screen_name(screen_name):
+    def id_from_screen_name(self, screen_name):
         """
         Convert user id to screen name
         """
-        values = TwitterBot.user_by_screen_name(screen_name)
+        #values = TwitterBot.user_by_screen_name(screen_name)
+        values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return user_profile.user_id
 
-    @staticmethod
-    def screen_name_from_id(user_id):
+    #@staticmethod
+    #def screen_name_from_id(user_id):
+    def screen_name_from_id(self, user_id):
         """
         Convert screen name to user id
         """
-        values = TwitterBot.user_by_id(user_id)
+        #values = TwitterBot.user_by_id(user_id)
+        values = self.user_by_id(user_id)
         if values:
             status, user_profile = values
             return user_profile.screen_name

@@ -245,9 +245,10 @@ class ReportHandler:
 
     }
 
-    def __init__(self, headers, session):
+    def __init__(self, headers, session, bot):
         self._headers = headers
         self._session = session
+        self.bot = bot
         self._headers["Content-Type"] = "application/json"
         
     def _prepare_report_profile_form(self, screen_name, user_id):
@@ -303,13 +304,13 @@ class ReportHandler:
         # if user id is not provided
         if screen_name is not None and user_id is None:
             logger.info("query to get user id...")
-            user_id = TwitterBot.id_from_screen_name(screen_name)
+            user_id = self.bot.id_from_screen_name(screen_name)
         if user_id is not None and screen_name is None:
-            screen_name = TwitterBot.screen_name_from_id(user_id)
+            screen_name = self.bot.screen_name_from_id(user_id)
         # if only tweet_id is available
         if screen_name is None and user_id is None and tweet_id is not None:
             logger.info("getting info from tweet...")
-            tweet = next(TwitterBot.tweet_detail(tweet_id))
+            tweet = next(self.bot.tweet_detail(tweet_id))
             user_id = tweet.user.user_id
             screen_name = tweet.user.screen_name
         if report_type==_ReportType.PROFILE or report_type==_ReportType.PROFILE.value:
