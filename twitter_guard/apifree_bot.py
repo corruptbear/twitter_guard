@@ -885,7 +885,7 @@ class TwitterBot:
 
     def _select_search_method(self):
         try:
-            for x in self.search_timeline_graphql("world"):
+            for x in self.search_timeline_graphql("world", batch_count = 20):
                 tmp = x.user
                 self.search_timeline = self.search_timeline_graphql
                 logger.info("graphql search selected")
@@ -1433,7 +1433,7 @@ class TwitterBot:
 
     #@staticmethod
     #def get_tweets_replies(user_id):
-    def get_tweets_replies(self, user_id):
+    def get_tweets_replies(self, user_id, batch_count=100):
         """
         Gets the texts from the user's tweets and replies tab.
         """
@@ -1447,6 +1447,7 @@ class TwitterBot:
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
         form["variables"]["userId"] = str(user_id)
+        form["variables"]["count"] = batch_count
         form["features"]["responsive_web_graphql_exclude_directive_enabled"] = True
         form["features"]["responsive_web_twitter_article_tweet_consumption_enabled"] = False
         form["features"]["tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled"] = True
@@ -1456,7 +1457,7 @@ class TwitterBot:
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
             yield from self._text_from_entries(entries, user_id = user_id)
 
-    def get_following(self, user_id):
+    def get_following(self, user_id, batch_count=100):
         """
         Gets the list of following.
         Returns a list of TwitterUserProfile.
@@ -1471,11 +1472,12 @@ class TwitterBot:
 
         # set userID in form
         form["variables"]["userId"] = str(user_id)
+        form["variables"]["count"] = batch_count
 
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
             yield from self._users_from_entries(entries)
 
-    def get_followers(self, user_id):
+    def get_followers(self, user_id, batch_count = 100):
         """
         Gets the list of followers.
         Returns a list of TwitterUserProfile.
@@ -1487,6 +1489,7 @@ class TwitterBot:
         url = TwitterBot.urls["followers"]
 
         form = copy.deepcopy(TwitterBot.following_followers_form)
+        form["variables"]["count"] = batch_count
 
         # set userID in form
         form["variables"]["userId"] = str(user_id)
@@ -1494,7 +1497,7 @@ class TwitterBot:
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
             yield from self._users_from_entries(entries)
 
-    def get_retweeters(self, tweet_url):
+    def get_retweeters(self, tweet_url, batch_count = 100):
         """
         Gets the list of visible (not locked) retweeters.
         Returns a list of TwitterUserProfile.
@@ -1511,6 +1514,7 @@ class TwitterBot:
 
         # set tweetId in form
         form["variables"]["tweetId"] = tweet_url.split("/")[-1]
+        form["variables"]["count"] = batch_count
 
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
             yield from self._users_from_entries(entries)
@@ -1730,7 +1734,7 @@ class TwitterBot:
 
     #@staticmethod
     #def search_timeline_graphql(query):
-    def search_timeline_graphql(self, query):
+    def search_timeline_graphql(self, query, batch_count = 100):
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.info("search (graphql, logged in)")
 
@@ -1740,7 +1744,7 @@ class TwitterBot:
         form = {
             'variables' : {
                 "rawQuery": query,
-                "count": 100,
+                "count": batch_count,
                 "product": "Latest",
                 "querySource": "typed_query",
                 },
