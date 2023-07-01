@@ -76,14 +76,6 @@ def display_session_cookies(s):
     for x in s.cookies:
         logger.debug(f"{x}")
 
-def numerical_id(user_id):
-    try:
-        int_user_id = int(user_id)
-    except:
-        int_user_id = int(TwitterBot.id_from_screen_name(user_id))
-
-    return int_user_id
-
 def genct0():
     """
     Generated the ct0 cookie value.
@@ -943,7 +935,7 @@ class TwitterBot:
         self.update_remote_cursor(TwitterBot.notification_all_form["cursor"])
 
     def block_user(self, user_id):
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["block"]
         block_form = {"user_id": str(user_id)}
@@ -953,7 +945,7 @@ class TwitterBot:
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unblock_user(self, user_id):
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["unblock"]
         unblock_form = {"user_id": str(user_id)}
@@ -963,7 +955,7 @@ class TwitterBot:
         logger.debug(f"{r.status_code}, {r.text}")
 
     def mute_user(self, user_id):
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["mute"]
         mute_form = {"user_id": str(user_id)}
@@ -973,7 +965,7 @@ class TwitterBot:
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unmute_user(self, user_id):
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["unmute"]
         unmute_form = {"user_id": str(user_id)}
@@ -1427,7 +1419,7 @@ class TwitterBot:
         """
         Get a user's lists.
         """
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["combined_lists"]
         #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
@@ -1445,7 +1437,7 @@ class TwitterBot:
         """
         Gets the texts from the user's tweets and replies tab.
         """
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         headers = self._json_headers()
         url = TwitterBot.urls["tweets_replies"]
@@ -1469,7 +1461,7 @@ class TwitterBot:
         Gets the list of following.
         Returns a list of TwitterUserProfile.
         """
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         headers = self._json_headers()
 
@@ -1488,7 +1480,7 @@ class TwitterBot:
         Gets the list of followers.
         Returns a list of TwitterUserProfile.
         """
-        user_id = numerical_id(user_id)
+        user_id = self.numerical_id(user_id)
 
         headers = self._json_headers()
 
@@ -1686,17 +1678,21 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def create_thread(self, tweets):
+    def create_thread(self, tweets, conversation_control = None, min_interval = 10, max_interval = 30):
         #tweets: a list of dicts
         initial_tweet = tweets[0]
         rest_tweets = tweets[1:]
+        new_tweets_ids = []
 
-        tweet_id = self.create_tweet(initial_tweet["text"],image_paths = initial_tweet["imgs"])
-        sleep(random.randint(5, 25))
+        tweet_id = self.create_tweet(initial_tweet["text"],image_paths = initial_tweet["imgs"], conversation_control = conversation_control)
+        new_tweets_ids.append(tweet_id)
+        sleep(random.randint(min_interval, max_interval))
 
         for tweet in rest_tweets:
             tweet_id = self.reply_to_tweet(tweet_id, tweet["text"], image_paths = tweet["imgs"])
-            sleep(random.randint(5, 25))
+            new_tweets_ids.append(tweet_id)
+            sleep(random.randint(min_interval, max_interval))
+        return new_tweets_ids
 
     @staticmethod
     def tmp_session_headers():
@@ -1899,6 +1895,16 @@ class TwitterBot:
             else:
                 yield from TwitterBot._text_from_entries(entries)
 
+    def pin_tweet(self, tweet_id):
+        logger.debug("pin tweet")
+        url = "https://api.twitter.com/1.1/account/pin_tweet.json"
+        form = {"tweet_mode": "extended", "id": tweet_id}
+        r = self._session.post(url, headers=self._headers, params=form)
+        if r.status_code!=200:
+            logger.debug(f"{r.status_code}, {r.text}")
+        else:
+            logger.info(f"{tweet_id} pinned!")
+
     #@staticmethod
     #def user_by_screen_name(screen_name):
     def user_by_screen_name(self, screen_name):
@@ -1996,6 +2002,14 @@ class TwitterBot:
         if values:
             status, user_profile = values
             return user_profile.screen_name
+
+    def numerical_id(self, user_id):
+        try:
+            int_user_id = int(user_id)
+        except:
+            int_user_id = int(self.id_from_screen_name(user_id))
+
+        return int_user_id
 
 if __name__ == "__main__":
     pass
