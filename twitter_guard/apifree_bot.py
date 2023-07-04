@@ -1251,6 +1251,19 @@ class TwitterBot:
             return "original"
 
     @staticmethod
+    def _cdn_tweet_type(info):
+        if "retweeted_tweet_id" in info:
+            return "retweeted"
+        if "replied_tweet_id" in info:
+            if "quoted_tweet_id" in info:
+                return "reply_by_quote"
+            return "reply"
+        else:
+            if "quoted_tweet_id" in info:
+                return "quote"
+            return "original"
+
+    @staticmethod
     def _tweet_from_result(result):
         tweet_type = TwitterBot._tweet_type(result.legacy)
         try:
@@ -1644,6 +1657,25 @@ class TwitterBot:
             media_ids = None
         return media_ids
 
+    def conversation_control_change(self, tweet_id = None, mode = None):
+        #can only be used on the original tweet in a thread
+        logger.debug("conversation control change")
+        url = "https://twitter.com/i/api/graphql/hb1elGcj6769uT8qVYqtjw/ConversationControlChange"
+        headers = self._json_headers()
+        form = {"variables": dict(),
+        "queryId": "hb1elGcj6769uT8qVYqtjw",
+        }
+        form["variables"]["tweet_id"] = str(tweet_id)
+        form["variables"]["mode"] = mode
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
+        logger.debug(f"{r.status_code} {t.text}")
+        r.raise_for_status()
+
+        response = r.json()
+        response = TwitterJSON(response)
+        if response.data.tweet_conversation_control_put == "Done":
+            logger.info("{tweet_id} conversation control change success!")
+
     def create_tweet(self, text, image_paths = None, conversation_control = None):
         #conversation_control vals: ByInvitation, Community
         logger.debug("tweet")
@@ -1898,6 +1930,69 @@ class TwitterBot:
                 return None
             else:
                 yield from TwitterBot._text_from_entries(entries)
+
+    @staticmethod
+    def cdn_tweet_detail(tweet_id):
+        logger.debug("get tweet brief from twitter cdn")
+        url = "https://cdn.syndication.twimg.com/tweet-result"
+        form = {"id": tweet_id, "lang": "en"}
+        headers = {
+            "Accept": "*/*",
+            "Origin":"https://platform.twitter.com",
+            "Referer":"https://platform.twitter.com/",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control":"no-cache",
+            "Pragma":"no-cache",
+            "Sec-Fetch-Dest":"empty",
+            "Sec-Fetch-Mode":"cors",
+            "Sec-Fetch-Site":"cross-site",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        }
+        r = requests.get(url, headers=headers, params=form)
+        logger.debug(f"{r.status_code} {r.text}")
+        if r.status_code == 200:
+            response = r.json()
+            response = TwitterJSON(response)
+
+            this_id = int(response.id_str)
+
+            user = response.user
+            p = TwitterUserProfile(
+                int(user.id_str),
+                user.screen_name,
+                display_name=user.name,
+            )
+            otherinfo = dict()
+            #if it's a retweet, platform.twitter will just return the tweet being retweeted
+            #not a retweet
+            if this_id == tweet_id:
+                otherinfo["user"]=p
+                if response.in_reply_to_status_id_str:
+                    otherinfo["replied_tweet_id"] = int( response.in_reply_to_status_id_str)
+                if response.in_reply_to_user_id_str:
+                    otherinfo["replied_user_id"] = int(response.in_reply_to_user_id_str)
+                quoted_tweet = response.quoted_tweet
+                if quoted_tweet:
+                    otherinfo["quoted_tweet_id"] = int(quoted_tweet.id_str)
+                    otherinfo["quoted_user_id"] = int(quoted_tweet.user.id_str)
+            #a retweet
+            else:
+                otherinfo["retweeted_tweet_id"] = this_id
+                otherinfo["retweeted_user_id"] = int(user.id_str)
+
+            tweet = Tweet(
+                int(tweet_id),
+                tweet_type = TwitterBot._cdn_tweet_type(otherinfo),
+                created_at=datetime.strptime(response.created_at, "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=timezone.utc).isoformat(),
+                text=response.text,
+                lang = response.lang,
+                hashtags = [x['text'] for x in response.entities.hashtags],
+                user_mentions = [TwitterUserProfile(int(x.id_str), x.screen_name) for x in response.entities.user_mentions],
+                **otherinfo
+            )
+            return tweet
+        return None
 
     def pin_tweet(self, tweet_id):
         logger.debug("pin tweet")
