@@ -18,6 +18,7 @@ class _ReportType(Enum):
 class ReportOption:
     SpammedOption = "SpammedOption"
     HarassedOrViolenceOption = "HarassedOrViolenceOption"
+    SexuallyHarassingOption = "SexuallyHarassingOption"
 
     ShownMisleadingInfoOption = "ShownMisleadingInfoOption"
     UsingMultipleAccountsOption = "UsingMultipleAccountsOption"
@@ -215,12 +216,12 @@ class ReportHandler:
         },
         #TODO: to be fixed
         "SexualHarassment":{
-            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], [ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]],
+            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.SexuallyHarassingOption]],
             "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
         },
 
         "PostingPrivateInfo":{
-            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.PostingPrivateInfoOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption]]
+            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.PostingPrivateInfoOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption], [ReportOption.ReportedsProfileOption]]
             
         },
 
@@ -232,7 +233,7 @@ class ReportHandler:
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.WishingHarmOption], [],[ReportOption.ReportedsProfileOption]],
             "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
         },
-
+        #[ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
         "Insulting":{
             "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], []],
             "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."

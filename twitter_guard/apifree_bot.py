@@ -942,6 +942,11 @@ class TwitterBot:
         r = self._session.post(url, headers=self._headers, params=block_form)
         if r.status_code == 200:
             logger.info(f"block {user_id}: successfully sent block post!")
+            response = r.json()
+            #update the block list
+            if hasattr(self, "_block_list_path"):
+                self._block_list[user_id]=response["screen_name"]
+                save_yaml(self._block_list, self._block_list_path, "w")
         logger.debug(f"{r.status_code}, {r.text}")
 
     def unblock_user(self, user_id):
@@ -1059,15 +1064,16 @@ class TwitterBot:
             notifications = result.globalObjects.notifications
             # userid and sortindex available; but not interaction type
             for notification in notifications.values():
-                # print(notification)
+                print(notification)
                 # print(notification.message.text)
                 notification_id_to_user_id[notification.id] = []
                 for e in notification.message.entities:
                     #there might be notifications that have non-empty entities field but do not contain any user
                     if e.ref is not None:
-                        entry_user_id = int(e.ref.user.id)
-                        # add the users appearing in notifications (do not include replies)
-                        notification_id_to_user_id[notification.id].append(entry_user_id)
+                        if e.ref.user is not None:
+                            entry_user_id = int(e.ref.user.id)
+                            # add the users appearing in notifications (do not include replies)
+                            notification_id_to_user_id[notification.id].append(entry_user_id)
 
         logger.info(f"TIMELINE ID: {result.timeline.id}")
         instructions = result.timeline.instructions  # instructions is a list
