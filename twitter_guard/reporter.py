@@ -7,14 +7,107 @@ import copy
 from .utils import *
 from .apifree_bot import TwitterBot
 
+import ast
+import inspect
+import asyncio
+import aiohttp
+import textwrap
+from urllib.parse import unquote
+
 import logging
 
 logger = logging.getLogger(__name__)
 
+
+class AsyncTransformer(ast.NodeTransformer):
+    prev = None
+
+    def visit(self, node):
+        # set prev attribute for this node
+        node.prev = self.prev
+        # This node becomes the new prev
+        self.prev = node
+
+        skip = False
+        if hasattr(self, "async_with_node"):
+            if len(self.async_with_node.body) == 0:
+                self.async_with_node.body.append(node)
+                skip = True
+
+        # Do any work required by super class
+        node = super().visit(node)
+
+        # If we have a valid node (ie. node not being removed)
+        if isinstance(node, ast.AST):
+            # update the prev, since this may have been transformed to a different node by super
+            self.prev = node.prev
+        if not skip:
+            return node
+        else:
+            return None
+
+    def visit_Attribute(self, node):
+        # rewrite status_code into status
+        if isinstance(node, ast.Attribute) and node.attr == "status_code":
+            node.attr = "status"
+        # Call the base class method to continue traversing the tree
+        return self.generic_visit(node)
+
+    def visit_Assign(self, node):
+        # print_ast(node)
+        if isinstance(node.value, ast.Call):
+            func = node.value.func
+            if isinstance(func, ast.Attribute):
+                if isinstance(func.value, ast.Name) and func.value.id == "r":
+                    #response= r.json() => response = await r.json()
+                    if func.attr == "json":
+                        node.value = ast.Await(value=node.value)
+
+                if isinstance(func.value, ast.Attribute) and func.value.attr == "_session":
+                    async_with_node = ast.AsyncWith(
+                        items=[
+                            ast.withitem(
+                                context_expr=ast.Call(
+                                    func=ast.Attribute(
+                                        #rewrite self._session to session
+                                        value=ast.Name(id="session", ctx=ast.Load()),
+                                        #get/post
+                                        attr=func.attr,
+                                        ctx=ast.Load(),
+                                    ),
+                                    # keep the original args and keywords
+                                    args=node.value.args,
+                                    keywords=node.value.keywords,
+                                ),
+                                # the "as" part
+                                optional_vars=ast.Name(id="r", ctx=ast.Store()),
+                            )
+                        ],
+                        body=[],  # empty when created
+                    )
+                    ast.copy_location(async_with_node, node)
+                    async_with_node.prev = self.prev
+                    self.async_with_node = async_with_node
+                    return async_with_node
+        return node
+
+    def visit_FunctionDef(self, node):
+        # add async to the function name
+        node.name = node.name + "_async"
+        # set the type to async def
+        node.__class__ = ast.AsyncFunctionDef
+        # add sessionargument
+        node.args.args.append(ast.arg(arg="session", annotation=None))
+        # set the default value
+        keyword_default = ast.Constant(value=None)
+        node.args.defaults.append(keyword_default)
+        # node.decorator_list.append(ast.Name(id='asyncio.ensure_future', ctx=ast.Load()))
+        return self.generic_visit(node)
+
 class _ReportType(Enum):
     PROFILE = "profile"
     TWEET = "tweet"
-    
+
 class ReportOption:
     SpammedOption = "SpammedOption"
     HarassedOrViolenceOption = "HarassedOrViolenceOption"
@@ -44,52 +137,68 @@ class ReportOption:
     ReportedsProfileOption = "ReportedsProfileOption"
     ReportedsTweetsOption = "ReportedsTweetsOption"
 
-    #TODO: handle from profile or from tweet
+    # TODO: handle from profile or from tweet
     options = {
         "Spam": {
-            "options":[[SpammedOption],[LikeRetweetReplySpamOption]],
+            "options": [[SpammedOption], [LikeRetweetReplySpamOption]],
             "context_text": "this account aggressively posts the same spam reply again and again to different users",
         },
-
         "GovBot": {
             "options": [[SpammedOption], [UsingMultipleAccountsOption]],
             "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
         },
-
-        "PoliticalDisinfo":{
-            "options":[[ShownMisleadingInfoOption], [GeneralMisinformationPoliticsOption], [GeneralMisinformationPoliticsOtherOption]],
+        "PoliticalDisinfo": {
+            "options": [
+                [ShownMisleadingInfoOption],
+                [GeneralMisinformationPoliticsOption],
+                [GeneralMisinformationPoliticsOtherOption],
+            ],
             "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
         },
-        #TODO: to be fixed
-        "SexualHarassment":{
+        # TODO: to be fixed
+        "SexualHarassment": {
             "options": [[HarassedOrViolenceOption], [SexuallyHarassingOption]],
-            "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
+            "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one.",
         },
-
-        "PostingPrivateInfo":{
-            "options":[[HarassedOrViolenceOption],[PostingPrivateInfoOption], [PrivateInfoContactInfoOption, OtherOption], [ReportedsProfileOption]]
+        "PostingPrivateInfo": {
+            "options": [
+                [HarassedOrViolenceOption],
+                [PostingPrivateInfoOption],
+                [PrivateInfoContactInfoOption, OtherOption],
+                [ReportedsProfileOption],
+            ]
         },
-
-        "ThreateningToExpose":{
-            "options":[[HarassedOrViolenceOption],[ThreateningToExposeOption], [PrivateInfoContactInfoOption, OtherOption]]
+        "ThreateningToExpose": {
+            "options": [
+                [HarassedOrViolenceOption],
+                [ThreateningToExposeOption],
+                [PrivateInfoContactInfoOption, OtherOption],
+            ]
         },
-
-        "WishingHarm":{
-            "options": [[HarassedOrViolenceOption], [WishingHarmOption], [],[ReportedsProfileOption]],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
+        "WishingHarm": {
+            "options": [
+                [HarassedOrViolenceOption],
+                [WishingHarmOption],
+                [],
+                [ReportedsProfileOption],
+            ],
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm.",
         },
-        #[ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
-        "Insulting":{
+        # [ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
+        "Insulting": {
             "options": [[HarassedOrViolenceOption], [InsultingOption], []],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me.",
         },
-
-        #TODO: only form me; needs to figure out for others
-        "Impersonation":{
-            "options": [[ZazuImpersonationOption], [PretendingToBeOption], ["TargetingMeOption"]],
-        }
-
+        # TODO: only form me; needs to figure out for others
+        "Impersonation": {
+            "options": [
+                [ZazuImpersonationOption],
+                [PretendingToBeOption],
+                ["TargetingMeOption"],
+            ],
+        },
     }
+
 
 def gen_report_flow_id():
     """
@@ -116,20 +225,16 @@ def gen_report_flow_id():
 
 
 class ReportHandler:
-    
     report_tweet_get_token_input_flow_data = {
         "requested_variant": '{"client_app_id":"3033300","client_location":"tweet::tweet","client_referer":"/AliciaGuffey19/status/1635812523919265792","is_media":false,"is_promoted":false,"report_flow_id":"079eaf8e-1ee4-4594-bb0f-eb654402dca1","reported_tweet_id":"1635812523919265792","reported_user_id":"1628849065722097665","source":"reporttweet"}',
         "flow_context": {
-          "debug_overrides": {},
-          "start_location": {
-            "location": "tweet",
-            "tweet": {
-              "tweet_id": "1635812523919265792"
-            }
-          }
-        }
-      }
-
+            "debug_overrides": {},
+            "start_location": {
+                "location": "tweet",
+                "tweet": {"tweet_id": "1635812523919265792"},
+            },
+        },
+    }
 
     report_get_token_payload = {
         "input_flow_data": {
@@ -213,10 +318,7 @@ class ReportHandler:
         "subtask_inputs": [
             {
                 "subtask_id": "typeahead-search",
-                "typeahead_search": {
-                    "link": "next_link",
-                    "selected_item_id": ""
-                }
+                "typeahead_search": {"link": "next_link", "selected_item_id": ""},
             }
         ]
     }
@@ -246,21 +348,65 @@ class ReportHandler:
         ]
     }
 
+    expanded = False
+
+    @classmethod
+    def async_expand(cls):
+        #this implementation only works specific code structure: after getting the response, the remaining code is in one node
+        if not cls.expanded:
+            # add async version of functions
+            for f in [
+                ReportHandler._get_flow_token,
+                ReportHandler._handle_intro,
+                ReportHandler._handle_target,
+                ReportHandler._handle_choices,
+                ReportHandler._handle_diagnosis,
+                ReportHandler._handle_review_and_submit,
+                ReportHandler._handle_completion,
+            ]:
+                # get the code of the original class
+                source_code = inspect.getsource(f)
+                # get the tree of the orginal class
+                func_tree = ast.parse(textwrap.dedent(source_code))
+
+                transformer = AsyncTransformer()
+                async_func_tree = transformer.visit(func_tree)
+                # modified_source_code = ast.unparse(test_class_node)
+                modified_source_code = ast.unparse(async_func_tree)
+                logger.debug(f"{modified_source_code}")
+
+                tree = ast.parse(modified_source_code, mode="exec")
+                code = compile(tree, filename="<string>", mode="exec")
+                namespace = {}
+                # keep the imports using globals()
+                exec(code, globals(), namespace)
+                new_func_name = f.__name__ + "_async"
+                # make the new functions available for call
+                setattr(ReportHandler, new_func_name, namespace[new_func_name])
+            cls.expanded = True
+
     def __init__(self, headers, session, bot):
+        #this only runs once
+        ReportHandler.async_expand()
+
         self._headers = headers
         self._session = session
+        self._async_session = aiohttp.ClientSession(cookies=session.cookies)
         self.bot = bot
         self._headers["Content-Type"] = "application/json"
-        
+
+        reporter_id = unquote(self._session.cookies['twid']).replace('"', '')
+        self.reporter_id = int(reporter_id.split("=")[1])
+
     def _prepare_report_profile_form(self, screen_name, user_id):
         form = copy.deepcopy(ReportHandler.report_get_token_payload)
 
         s = form["input_flow_data"]["requested_variant"]
-        
+
         s_json = json.loads(s)
-        s_json["report_flow_id"]=gen_report_flow_id()
-        s_json["reported_user_id"]=str(user_id)
-        s_json["client_referer"]="/"+screen_name
+        s_json["report_flow_id"] = gen_report_flow_id()
+        s_json["reported_user_id"] = str(user_id)
+        s_json["client_referer"] = "/" + screen_name
         s = json.dumps(s_json)
 
         """
@@ -290,10 +436,10 @@ class ReportHandler:
 
         s = form["input_flow_data"]["requested_variant"]
         s_json = json.loads(s)
-        s_json["report_flow_id"]=gen_report_flow_id()
-        s_json["reported_user_id"]=str(user_id)
-        s_json["reported_tweet_id"]=str(tweet_id)
-        s_json["client_referer"]=f"/{screen_name}/status/{tweet_id}"
+        s_json["report_flow_id"] = gen_report_flow_id()
+        s_json["reported_user_id"] = str(user_id)
+        s_json["reported_tweet_id"] = str(tweet_id)
+        s_json["client_referer"] = f"/{screen_name}/status/{tweet_id}"
         s = json.dumps(s_json)
 
         form["input_flow_data"]["requested_variant"] = s
@@ -301,7 +447,7 @@ class ReportHandler:
 
         return form
 
-    def _get_flow_token(self, report_type, screen_name = None, user_id = None, tweet_id = None):
+    def _get_flow_token(self, report_type, screen_name=None, user_id=None, tweet_id=None):
         # if user id is not provided
         if screen_name is not None and user_id is None:
             logger.info("query to get user id...")
@@ -314,10 +460,10 @@ class ReportHandler:
             tweet = next(self.bot.tweet_detail(tweet_id))
             user_id = tweet.user.user_id
             screen_name = tweet.user.screen_name
-        if report_type==_ReportType.PROFILE or report_type==_ReportType.PROFILE.value:
+        if report_type == _ReportType.PROFILE or report_type == _ReportType.PROFILE.value:
             form = self._prepare_report_profile_form(screen_name, user_id)
-        if report_type==_ReportType.TWEET or report_type==_ReportType.TWEET.value:
-            form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)    
+        if report_type == _ReportType.TWEET or report_type == _ReportType.TWEET.value:
+            form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)
 
         r = self._session.post(
             "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
@@ -326,9 +472,9 @@ class ReportHandler:
         )
 
         if r.status_code == 200:
-            self.flow_token = r.json()["flow_token"]
+            response = r.json()
+            self.flow_token = response["flow_token"]
         return r.status_code
-
 
     def _handle_intro(self):
         intro_payload = ReportHandler.intro_payload
@@ -343,7 +489,8 @@ class ReportHandler:
         try:
             response = r.json()
             self.flow_token = response["flow_token"]
-            logger.debug(f"{r.status_code} {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
+            logger.debug(
+                f"{r.status_code} {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
             )
         except:
             logger.info(r.status_code)
@@ -355,32 +502,34 @@ class ReportHandler:
         choices_payload = copy.deepcopy(ReportHandler.choices_payload)
 
         logger.info(f"choices: {choices}")
-        if len(choices)>0:
+        if len(choices) > 0:
             choices_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = choices
 
         choices_payload["flow_token"] = self.flow_token
-        
-        if  len(choices)==1:
-            choices_payload["subtask_inputs"][0]["subtask_id"]="single-selection"
-        elif len(choices)>1:
-            choices_payload["subtask_inputs"][0]["subtask_id"]="multi-selection"
-        elif len(choices)==0:
-            #skipping multi-choice; assumption: only multi-choice allow skipping?
-            choices_payload["subtask_inputs"][0]["subtask_id"]="multi-selection"
-            choices_payload["subtask_inputs"][0]["choice_selection"]["link"]="skip_link"
+
+        if len(choices) == 1:
+            choices_payload["subtask_inputs"][0]["subtask_id"] = "single-selection"
+        elif len(choices) > 1:
+            choices_payload["subtask_inputs"][0]["subtask_id"] = "multi-selection"
+        elif len(choices) == 0:
+            # skipping multi-choice; assumption: only multi-choice allow skipping?
+            choices_payload["subtask_inputs"][0]["subtask_id"] = "multi-selection"
+            choices_payload["subtask_inputs"][0]["choice_selection"]["link"] = "skip_link"
 
         r = self._session.post(
             "https://api.twitter.com/1.1/report/flow.json",
             headers=self._headers,
             data=json.dumps(choices_payload),
-            )
+        )
 
         if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
 
             if "choice_selection" in response["subtasks"][0]:
-                logger.debug(f"{r.status_code}, {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}")
+                logger.debug(
+                    f"{r.status_code}, {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
+                )
             else:
                 logger.debug(f"{[s['subtask_id'] for s in response['subtasks']]}")
         else:
@@ -423,6 +572,7 @@ class ReportHandler:
             self.flow_token = response["flow_token"]
         else:
             logger.error(f"{r.status_code} submit failed")
+            logger.debug(f"{r.headers}")
             logger.debug(f"{review_submit_payload}")
             logger.debug(f"{r.text}")
         return r.status_code
@@ -435,27 +585,29 @@ class ReportHandler:
             headers=self._headers,
             data=json.dumps(completion_payload),
         )
-        response = r.json()
-        self.flow_token = response["flow_token"]
 
         if r.status_code == 200:
             logger.info("successfully completed!")
+            response = r.json()
+            self.flow_token = response["flow_token"]
         else:
             logger.info(r.status_code)
+            logger.debug(f"{r.text}")
         return r.status_code
 
     def _handle_target(self, target):
-
         target_payload = copy.deepcopy(ReportHandler.choices_payload)
 
-        if target=="Me":
+        if target == "Me":
             target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["TargetingMeOption"]
-        elif target=="Other":
+        elif target == "Other":
             target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["ZazuTargetingSomeoneElseOrGroupOption"]
-        elif target=="Everyone":
+        elif target == "Everyone":
             target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["EveryoneOnTwitterOption"]
 
-        logger.debug(f"target: {target_payload['subtask_inputs'][0]['choice_selection']['selected_choices']}")
+        logger.debug(
+            f"target: {target_payload['subtask_inputs'][0]['choice_selection']['selected_choices']}"
+        )
 
         target_payload["flow_token"] = self.flow_token
 
@@ -464,16 +616,28 @@ class ReportHandler:
             headers=self._headers,
             data=json.dumps(target_payload),
         )
-        logger.info(r.status_code)
-        response = r.json()
-        self.flow_token = response["flow_token"]
 
+        try:
+            response = r.json()
+            self.flow_token = response["flow_token"]
+        except:
+            logger.info(r.status_code)
+            logger.debug(f"{r.text}")
         return r.status_code
 
-    def _report(self, option_name, report_type, target=None, user_id=None, screen_name = None, tweet_id=None, context_msg=None):
+    def _report(
+        self,
+        option_name,
+        report_type,
+        target=None,
+        user_id=None,
+        screen_name=None,
+        tweet_id=None,
+        context_msg=None,
+    ):
         """
         Report a single twitter profile or tweet.
-        
+
         Parameters:
         option_name (str): a short string specifying the reporting options.
         report_type (_ReportType): either _ReportType.PROFILE or _ReportType.TWEET
@@ -486,23 +650,28 @@ class ReportHandler:
         logger.info(report_type)
         options = ReportOption.options[option_name]["options"]
 
-        if self._get_flow_token(report_type, screen_name = screen_name, user_id = user_id, tweet_id = tweet_id)!=200:
+        if (
+            self._get_flow_token(
+                report_type, screen_name=screen_name, user_id=user_id, tweet_id=tweet_id
+            )
+            != 200
+        ):
             return
 
-        if self._handle_intro()!=200:
+        if self._handle_intro() != 200:
             return
 
-        if self._handle_target(target)!=200:
+        if self._handle_target(target) != 200:
             return
 
         for choice in options:
-            #skip the question that only appears when you report from profile for reports on tweets
+            # skip the question that only appears when you report from profile for reports on tweets
             if tweet_id is not None and ReportOption.ReportedsProfileOption in choice:
                 continue
-            if self._handle_choices(choice)!=200:
+            if self._handle_choices(choice) != 200:
                 return
 
-        if self._handle_diagnosis()!=200:
+        if self._handle_diagnosis() != 200:
             return
 
         if context_msg is not None:
@@ -511,19 +680,42 @@ class ReportHandler:
             # use default context text of the presets
             context_text = ReportOption.options[option_name]["context_text"]
 
-        if self._handle_review_and_submit(context_text)!=200:
+        if self._handle_review_and_submit(context_text) != 200:
             return
-        if self._handle_completion()!=200:
+        if self._handle_completion() != 200:
             return
         return 200
 
-    def report_user(self, option_name, target="Me", user_id=None, screen_name=None, context_msg=None):
+    def report_user(
+        self, option_name, target="Me", user_id=None, screen_name=None, context_msg=None
+    ):
+        return self._report(
+            option_name,
+            _ReportType.PROFILE,
+            target=target,
+            user_id=user_id,
+            screen_name=screen_name,
+            context_msg=context_msg,
+        )
 
-        return self._report(option_name, _ReportType.PROFILE, target=target, user_id=user_id, screen_name=screen_name, context_msg=context_msg)
-
-    def report_tweet(self, option_name, target="Me", user_id=None, screen_name=None,tweet_id=None, context_msg=None):
-        
-        return self._report(option_name, _ReportType.TWEET, target=target, user_id=user_id, screen_name=screen_name, tweet_id=tweet_id, context_msg=context_msg)
+    def report_tweet(
+        self,
+        option_name,
+        target="Me",
+        user_id=None,
+        screen_name=None,
+        tweet_id=None,
+        context_msg=None,
+    ):
+        return self._report(
+            option_name,
+            _ReportType.TWEET,
+            target=target,
+            user_id=user_id,
+            screen_name=screen_name,
+            tweet_id=tweet_id,
+            context_msg=context_msg,
+        )
 
     def _report_generator(self, results, option_name, context_msg=None, by=None, skip_same_user=True):
         # report rate too high will make you black_listed
@@ -531,7 +723,7 @@ class ReportHandler:
 
         # only report once
         abuser_list = {}
-        
+
         for tweet in results:
             # print(content)
             user = tweet.user
@@ -550,25 +742,50 @@ class ReportHandler:
             posted_at = tweet.created_at
             source = tweet.source
 
-            #skip user already reported
+            # skip user already reported
             if skip_same_user and screen_name in abuser_list:
-                logger.info(f"Skipped: {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
+                logger.info(
+                    f"Skipped: {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}"
+                )
                 continue
-          
+
             abuser_list[screen_name] = user_id
-            logger.info(f"{count:<5} {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}")
+            logger.info(
+                f"{count:<5} {screen_name:<16} user_id: {user_id} post_id: {post_id} user_created_at:{created_at} posted_at:{posted_at}"
+            )
             count += 1
-            
-            #self.report_user(option_name, target=self._target, user_id=user_id, screen_name = screen_name, context_msg=context_msg)
-            if by=="tweet":
-                self.report_tweet(option_name, target=self._target, user_id=user_id, screen_name=screen_name, tweet_id=post_id, context_msg=context_msg)
+
+            # self.report_user(option_name, target=self._target, user_id=user_id, screen_name = screen_name, context_msg=context_msg)
+            if by == "tweet":
+                self.report_tweet(
+                    option_name,
+                    target=self._target,
+                    user_id=user_id,
+                    screen_name=screen_name,
+                    tweet_id=post_id,
+                    context_msg=context_msg,
+                )
                 sleep(8.5)
-            elif by=="user":
-                self.report_user(option_name, target=self._target, user_id=user_id, screen_name=screen_name, context_msg=context_msg)
+            elif by == "user":
+                self.report_user(
+                    option_name,
+                    target=self._target,
+                    user_id=user_id,
+                    screen_name=screen_name,
+                    context_msg=context_msg,
+                )
                 sleep(8)
 
-
-    def report_from_search(self, bot, phrase, option_name, target="Everyone", context_msg=None, by="tweet", skip_same_user = True):
+    def report_from_search(
+        self,
+        bot,
+        phrase,
+        option_name,
+        target="Everyone",
+        context_msg=None,
+        by="tweet",
+        skip_same_user=True,
+    ):
         """
         Report all users from tweet search result in the same way.
 
@@ -583,15 +800,29 @@ class ReportHandler:
         display_msg("report accounts from search term")
         display_msg(phrase)
         self._target = target
-        #x = TwitterBot.search_timeline(phrase)
+        # x = TwitterBot.search_timeline(phrase)
         x = bot.search_timeline(phrase)
-        self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
+        self._report_generator(
+            x,
+            option_name,
+            context_msg=context_msg,
+            by=by,
+            skip_same_user=skip_same_user,
+        )
 
-
-    def report_from_hashtag(self, bot, hashtag, option_name, target="Everyone", context_msg=None,by="tweet", skip_same_user = True):
+    def report_from_hashtag(
+        self,
+        bot,
+        hashtag,
+        option_name,
+        target="Everyone",
+        context_msg=None,
+        by="tweet",
+        skip_same_user=True,
+    ):
         """
         Report all users tweeting a certain hashtag in the same way.
-        
+
         Parameters:
         hashtag (str): the hashtag to be reported, not including the '#' symbol.
         option_name (str): a short string specifying the reporting options.
@@ -601,8 +832,14 @@ class ReportHandler:
         skip_same_user (Boolean): True, report the same author once; False, report the same author everytime.
         """
         display_msg("report accounts from hashtag")
-        display_msg("#"+hashtag)
+        display_msg("#" + hashtag)
         self._target = target
-        #x = TwitterBot.search_timeline("#"+hashtag)
-        x = bot.search_timeline("#"+hashtag)
-        self._report_generator(x, option_name, context_msg=context_msg, by=by, skip_same_user = skip_same_user)
+        # x = TwitterBot.search_timeline("#"+hashtag)
+        x = bot.search_timeline("#" + hashtag)
+        self._report_generator(
+            x,
+            option_name,
+            context_msg=context_msg,
+            by=by,
+            skip_same_user=skip_same_user,
+        )
