@@ -44,6 +44,53 @@ class ReportOption:
     ReportedsProfileOption = "ReportedsProfileOption"
     ReportedsTweetsOption = "ReportedsTweetsOption"
 
+    #TODO: handle from profile or from tweet
+    options = {
+        "Spam": {
+            "options":[[SpammedOption],[LikeRetweetReplySpamOption]],
+            "context_text": "this account aggressively posts the same spam reply again and again to different users",
+        },
+
+        "GovBot": {
+            "options": [[SpammedOption], [UsingMultipleAccountsOption]],
+            "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
+        },
+
+        "PoliticalDisinfo":{
+            "options":[[ShownMisleadingInfoOption], [GeneralMisinformationPoliticsOption], [GeneralMisinformationPoliticsOtherOption]],
+            "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
+        },
+        #TODO: to be fixed
+        "SexualHarassment":{
+            "options": [[HarassedOrViolenceOption], [SexuallyHarassingOption]],
+            "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
+        },
+
+        "PostingPrivateInfo":{
+            "options":[[HarassedOrViolenceOption],[PostingPrivateInfoOption], [PrivateInfoContactInfoOption, OtherOption], [ReportedsProfileOption]]
+        },
+
+        "ThreateningToExpose":{
+            "options":[[HarassedOrViolenceOption],[ThreateningToExposeOption], [PrivateInfoContactInfoOption, OtherOption]]
+        },
+
+        "WishingHarm":{
+            "options": [[HarassedOrViolenceOption], [WishingHarmOption], [],[ReportedsProfileOption]],
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
+        },
+        #[ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
+        "Insulting":{
+            "options": [[HarassedOrViolenceOption], [InsultingOption], []],
+            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
+        },
+
+        #TODO: only form me; needs to figure out for others
+        "Impersonation":{
+            "options": [[ZazuImpersonationOption], [PretendingToBeOption], ["TargetingMeOption"]],
+        }
+
+    }
+
 def gen_report_flow_id():
     """
     Generated report_flow_id
@@ -197,53 +244,6 @@ class ReportHandler:
                 "settings_list": {"setting_responses": [], "link": "next_link"},
             }
         ]
-    }
-    #TODO: handle from profile or from tweet
-    options = {
-        "Spam": {
-            "options":[[ReportOption.SpammedOption],[ReportOption.LikeRetweetReplySpamOption]],
-            "context_text": "this account aggressively posts the same spam reply again and again to different users",
-        },
-
-        "GovBot": {
-            "options": [[ReportOption.SpammedOption], [ReportOption.UsingMultipleAccountsOption]],
-            "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
-        }, 
-
-        "PoliticalDisinfo":{
-            "options":[[ReportOption.ShownMisleadingInfoOption], [ReportOption.GeneralMisinformationPoliticsOption], [ReportOption.GeneralMisinformationPoliticsOtherOption]],
-            "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
-        },
-        #TODO: to be fixed
-        "SexualHarassment":{
-            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.SexuallyHarassingOption]],
-            "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one."
-        },
-
-        "PostingPrivateInfo":{
-            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.PostingPrivateInfoOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption], [ReportOption.ReportedsProfileOption]]
-            
-        },
-
-        "ThreateningToExpose":{
-            "options":[[ReportOption.HarassedOrViolenceOption],[ReportOption.ThreateningToExposeOption], [ReportOption.PrivateInfoContactInfoOption, ReportOption.OtherOption]]
-        },
-
-        "WishingHarm":{
-            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.WishingHarmOption], [],[ReportOption.ReportedsProfileOption]],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm."
-        },
-        #[ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
-        "Insulting":{
-            "options": [[ReportOption.HarassedOrViolenceOption], [ReportOption.InsultingOption], []],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me."
-        },
-
-        #TODO: only form me; needs to figure out for others
-        "Impersonation":{
-            "options": [[ReportOption.ZazuImpersonationOption], [ReportOption.PretendingToBeOption], ["TargetingMeOption"]],
-        }
-
     }
 
     def __init__(self, headers, session, bot):
@@ -484,7 +484,7 @@ class ReportHandler:
         """
 
         logger.info(report_type)
-        options = ReportHandler.options[option_name]["options"]
+        options = ReportOption.options[option_name]["options"]
 
         if self._get_flow_token(report_type, screen_name = screen_name, user_id = user_id, tweet_id = tweet_id)!=200:
             return
@@ -509,7 +509,7 @@ class ReportHandler:
             context_text = context_msg
         else:
             # use default context text of the presets
-            context_text = ReportHandler.options[option_name]["context_text"]
+            context_text = ReportOption.options[option_name]["context_text"]
 
         if self._handle_review_and_submit(context_text)!=200:
             return
