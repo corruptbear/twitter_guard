@@ -884,6 +884,8 @@ class TwitterBot:
             self._set_selenium_cookies(b.driver.get_cookies())
 
     def _select_search_method(self):
+        self.search_timeline = self.search_timeline_graphql
+        return
         try:
             for x in self.search_timeline_graphql("world", batch_count = 20):
                 tmp = x.user
