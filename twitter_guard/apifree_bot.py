@@ -1472,6 +1472,7 @@ class TwitterBot:
         form["features"]["responsive_web_graphql_exclude_directive_enabled"] = True
         form["features"]["responsive_web_twitter_article_tweet_consumption_enabled"] = False
         form["features"]["tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled"] = True
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
         #    yield from TwitterBot._text_from_entries(entries, user_id = user_id)
