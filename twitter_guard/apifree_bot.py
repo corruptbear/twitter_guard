@@ -23,7 +23,8 @@ import copy
 from .selenium_bot import SeleniumTwitterBot
 from .utils import *
 from .rule_parser import rule_eval
-#from .reporter import ReportHandler
+
+# from .reporter import ReportHandler
 from time import sleep
 
 from collections import abc
@@ -37,6 +38,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def drop_accept_encoding_on_putheader(http_connection_putheader):
     def wrapper(self, header, *values):
         if header == "Accept-Encoding" and "identity" in values:
@@ -45,36 +47,41 @@ def drop_accept_encoding_on_putheader(http_connection_putheader):
 
     return wrapper
 
-#this will avoid python automatically add Accept-Encoding: identity
+
+# this will avoid python automatically add Accept-Encoding: identity
 HTTPConnection.putheader = drop_accept_encoding_on_putheader(HTTPConnection.putheader)
 
 # This is the 2.11 Requests cipher string, containing 3DES.
 CIPHERS = (
-    'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
-    'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
-    '!eNULL:!MD5'
+    "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:"
+    "DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:"
+    "!eNULL:!MD5"
 )
 
-CIPHERS = ("ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384")
+CIPHERS = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384"
+
 
 class DESAdapter(HTTPAdapter):
     """
     A TransportAdapter that re-enables 3DES support in Requests.
     """
+
     def init_poolmanager(self, *args, **kwargs):
         context = create_urllib3_context(ciphers=CIPHERS)
-        kwargs['ssl_context'] = context
+        kwargs["ssl_context"] = context
         return super(DESAdapter, self).init_poolmanager(*args, **kwargs)
 
     def proxy_manager_for(self, *args, **kwargs):
         context = create_urllib3_context(ciphers=CIPHERS)
-        kwargs['ssl_context'] = context
+        kwargs["ssl_context"] = context
         return super(DESAdapter, self).proxy_manager_for(*args, **kwargs)
+
 
 def display_session_cookies(s):
     logger.info("print cookies")
     for x in s.cookies:
         logger.debug(f"{x}")
+
 
 def genct0():
     """
@@ -204,18 +211,19 @@ class Tweet:
     quoted_tweet_id: int = dataclasses.field(default=None)
     quoted_user_id: int = dataclasses.field(default=None)
     replied_tweet_id: int = dataclasses.field(default=None)
-    replied_user_id:int = dataclasses.field(default=None)
+    replied_user_id: int = dataclasses.field(default=None)
     retweeted_tweet_id: int = dataclasses.field(default=None)
     retweeted_user_id: int = dataclasses.field(default=None)
 
-    view_count : int = dataclasses.field(default=None)
-    reply_count : int = dataclasses.field(default=None)
-    retweet_count : int = dataclasses.field(default=None)
-    favorite_count : int = dataclasses.field(default=None)
-    quote_count : int = dataclasses.field(default=None)
-    bookmark_count : int = dataclasses.field(default=None)
-    
-    user : TwitterUserProfile = dataclasses.field(default=None)
+    view_count: int = dataclasses.field(default=None)
+    reply_count: int = dataclasses.field(default=None)
+    retweet_count: int = dataclasses.field(default=None)
+    favorite_count: int = dataclasses.field(default=None)
+    quote_count: int = dataclasses.field(default=None)
+    bookmark_count: int = dataclasses.field(default=None)
+
+    user: TwitterUserProfile = dataclasses.field(default=None)
+
 
 @dataclasses.dataclass
 class TwitterList:
@@ -226,10 +234,11 @@ class TwitterList:
     subscriber_count: int = dataclasses.field(default=None)
     user: TwitterUserProfile = dataclasses.field(default=None)
 
+
 class SessionType:
     Authenticated = "Authenticated"
     Guest = "Guest"
-    
+
 
 class TwitterLoginBot:
     def __init__(self, email, password, screenname, phonenumber=None, cookie_path=None):
@@ -403,7 +412,8 @@ class TwitterLoginBot:
                 {
                     "subtask_id": "LoginAcid",
                     "enter_text": {"text": "", "link": "next_link"},
-                }],
+                }
+            ],
         }
 
         # may be useful in the future if the mapping if subject to change
@@ -434,11 +444,11 @@ class TwitterLoginBot:
             self._headers["Content-Type"] = "application/json"
 
     def save_cookies_netscape_txt(self, cookie_path):
-        with open(cookie_path, 'w') as f:
-            f.write('# Netscape HTTP Cookie File\n')
+        with open(cookie_path, "w") as f:
+            f.write("# Netscape HTTP Cookie File\n")
             for x in self._session.cookies:
-                #DOMAIN(str) SUBDOMAIN?(bool) path(str) secure(bool) expire(int) name value
-                f.write(f'.twitter.com\tTRUE\t{x.path}\t{str(x.secure).upper()}\t2147483647\t{x.name}\t{x.value}\n')
+                # DOMAIN(str) SUBDOMAIN?(bool) path(str) secure(bool) expire(int) name value
+                f.write(f".twitter.com\tTRUE\t{x.path}\t{str(x.secure).upper()}\t2147483647\t{x.name}\t{x.value}\n")
 
     def save_cookies(self):
         # convert the cookiejar object to a dictionary; among duplicated entries, only the latest entry is kept
@@ -516,8 +526,8 @@ class TwitterLoginBot:
             payload = self.tasks[task]["payload"]
 
             payload["flow_token"] = self.login_flow_token
-            if task==8:
-                payload["subtask_inputs"][0]["enter_text"]["text"]=input(f"Enter Twitter Confirmation Code sent to {self._email}")
+            if task == 8:
+                payload["subtask_inputs"][0]["enter_text"]["text"] = input(f"Enter Twitter Confirmation Code sent to {self._email}")
 
             r = self._session.post(
                 "https://api.twitter.com/1.1/onboarding/task.json",
@@ -584,7 +594,7 @@ class TwitterBot:
         "user_by_rest_id": "https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId",
         "user_by_screen_name": "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName",
         "tweet_detail": "https://twitter.com/i/api/graphql/7d8fexGPbM0BRc5DkacJqA/TweetDetail",
-        "combined_lists":"https://twitter.com/i/api/graphql/rIxum3avpCu7APi7mxTNjw/CombinedLists",
+        "combined_lists": "https://twitter.com/i/api/graphql/rIxum3avpCu7APi7mxTNjw/CombinedLists",
         "delete_tweet": "https://twitter.com/i/api/graphql/VaenaVgh5q5ih7kvyVjgtg/DeleteTweet",
     }
 
@@ -626,16 +636,16 @@ class TwitterBot:
         "send_error_codes": "true",
         "simple_quoted_tweet": "true",
         "count": "40",
-        #"cursor": "DAABDAABCgABAAAAABZfed0IAAIAAAABCAADYinMQAgABFMKJicACwACAAAAC0FZWlhveW1SNnNFCAADjyMIvwAA",
+        # "cursor": "DAABDAABCgABAAAAABZfed0IAAIAAAABCAADYinMQAgABFMKJicACwACAAAAC0FZWlhveW1SNnNFCAADjyMIvwAA",
         "ext": "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,vibe",
     }
 
     adaptive_search_form = copy.deepcopy(notification_all_form)
-    adaptive_search_form['tweet_search_mode']='live'
-    adaptive_search_form['query_source']='typed_query'
-    adaptive_search_form['include_ext_edit_control']="true"
-    adaptive_search_form['spelling_corrections']="1"
-    adaptive_search_form['pc']="1"
+    adaptive_search_form["tweet_search_mode"] = "live"
+    adaptive_search_form["query_source"] = "typed_query"
+    adaptive_search_form["include_ext_edit_control"] = "true"
+    adaptive_search_form["spelling_corrections"] = "1"
+    adaptive_search_form["pc"] = "1"
 
     standard_graphql_features = {
         "responsive_web_twitter_blue_verified_badge_is_enabled": True,
@@ -658,20 +668,20 @@ class TwitterBot:
         "longform_notetweets_richtext_consumption_enabled": False,
         "responsive_web_enhance_cards_enabled": False,
         "rweb_lists_timeline_redesign_enabled": True,
-        "creator_subscriptions_tweet_preview_api_enabled":True,
-        "responsive_web_twitter_article_tweet_consumption_enabled":True,
-        "longform_notetweets_inline_media_enabled":True,
+        "creator_subscriptions_tweet_preview_api_enabled": True,
+        "responsive_web_twitter_article_tweet_consumption_enabled": True,
+        "longform_notetweets_inline_media_enabled": True,
     }
 
     combined_lists_form = {
-        "variables": {"userId":"86539341","count":100},
+        "variables": {"userId": "86539341", "count": 100},
         "features": standard_graphql_features,
     }
 
     tweet_detail_form = {
         "variables": {
             "focalTweetId": "1645587845359468551",
-            #"cursor": "NAEAAPAOHBn2IYDA0a2avq3WLYLA0ZnX8tjWLYCA0dGl664SAOHU4cC4sdYtgMDRgdCXrCQA0LW-7a3WLYyA06nn59ItAPAb0tWD1K7WLYiA0LGuv9bXLYLA0LGpxNbXLYyAtsGA0r-0LYCAvumX5fzXWgBAreXRsUgAUNPZgrGsWgBR0Pm3xNEJANDhpoOg2C2EwNTty-LiLQBQ1IXzgq4bAODUvbrLx9cthsDT7diluhIAUdLl5JnZCQBBkdTmp7QAMd2r4qIAUNKRwN7TCQDwB9DpxPLT1i2EwNPdmJ_Z1y2AwNPR8MkkAPABgNOhj_781i2-gL3F3ZzZo2MAMaW5kJkAUdClkaP9kADwB_GfvKzWLYzA0-m5htPWLSUCEhUEAAA",
+            # "cursor": "NAEAAPAOHBn2IYDA0a2avq3WLYLA0ZnX8tjWLYCA0dGl664SAOHU4cC4sdYtgMDRgdCXrCQA0LW-7a3WLYyA06nn59ItAPAb0tWD1K7WLYiA0LGuv9bXLYLA0LGpxNbXLYyAtsGA0r-0LYCAvumX5fzXWgBAreXRsUgAUNPZgrGsWgBR0Pm3xNEJANDhpoOg2C2EwNTty-LiLQBQ1IXzgq4bAODUvbrLx9cthsDT7diluhIAUdLl5JnZCQBBkdTmp7QAMd2r4qIAUNKRwN7TCQDwB9DpxPLT1i2EwNPdmJ_Z1y2AwNPR8MkkAPABgNOhj_781i2-gL3F3ZzZo2MAMaW5kJkAUdClkaP9kADwB_GfvKzWLYzA0-m5htPWLSUCEhUEAAA",
             "referrer": "tweet",
             "with_rux_injections": False,
             "includePromotedContent": True,
@@ -723,16 +733,22 @@ class TwitterBot:
             # "cursor": "HCaAgICU9oDCqS0AAA==",
             "includePromotedContent": True,
             "withCommunity": True,
-            #"withSuperFollowsUserFields": True,
-            #"withDownvotePerspective": False,
-            #"withReactionsMetadata": False,
-            #"withReactionsPerspective": False,
-            #"withSuperFollowsTweetFields": True,
+            # "withSuperFollowsUserFields": True,
+            # "withDownvotePerspective": False,
+            # "withReactionsMetadata": False,
+            # "withReactionsPerspective": False,
+            # "withSuperFollowsTweetFields": True,
             "withVoice": True,
             "withV2Timeline": True,
         },
         "features": standard_graphql_features,
-        "fieldToggles": {"withArticleRichContentState":False},
+        "fieldToggles": {"withArticleRichContentState": False},
+    }
+
+    blocklist_form = {
+        "variables": {"count": 20, "includePromotedContent": False, "withSafetyModeUserFields": False},
+        "features": standard_graphql_features,
+        "fieldToggles": {"withAuxiliaryUserLabels": False, "withArticleRichContentState": False},
     }
 
     default_headers = {
@@ -753,9 +769,9 @@ class TwitterBot:
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
-        #"authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        # "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
         "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        #"authorization": "Bearer AAAAAAAAAAAAAAAAAAAAAPYXBAAAAAAACLXUNDekMxqa8h%2F40K4moUkGsoc%3DTYfbDKbT3jJPCEVnMYqilB28NHfOPqkca3qaAxGfsyKCs0wRbw",
+        # "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAAPYXBAAAAAAACLXUNDekMxqa8h%2F40K4moUkGsoc%3DTYfbDKbT3jJPCEVnMYqilB28NHfOPqkca3qaAxGfsyKCs0wRbw",
         "Connection": "keep-alive",
         "TE": "trailers",
     }
@@ -775,8 +791,8 @@ class TwitterBot:
 
         self._session = requests.Session()
 
-        #experimental
-        self._session.mount('https://twitter.com', DESAdapter())
+        # experimental
+        self._session.mount("https://twitter.com", DESAdapter())
 
         self._cookie_path = cookie_path
 
@@ -820,7 +836,7 @@ class TwitterBot:
 
         self._select_search_method()
 
-        #self.reporter = ReportHandler(self._headers, self._session)
+        # self.reporter = ReportHandler(self._headers, self._session)
 
     def _set_selenium_cookies(self, cookies):
         logger.debug("setting cookies")
@@ -841,13 +857,13 @@ class TwitterBot:
         self._headers["x-csrf-token"] = self._session.cookies.get("ct0")
 
     def _load_cookies(self):
-        if self._cookie_path.endswith('.pkl'):
+        if self._cookie_path.endswith(".pkl"):
             logger.debug("loading cookies")
             cookies = pickle.load(open(self._cookie_path, "rb"))
             self._set_selenium_cookies(cookies)
-        elif self._cookie_path.endswith('.txt'):
+        elif self._cookie_path.endswith(".txt"):
             self.set_cookies_from_netscape_txt(self._cookie_path)
-        #g_state is not necessary
+        # g_state is not necessary
 
     def set_cookies_from_netscape_txt(self, cookie_path):
         cj = http.cookiejar.MozillaCookieJar(cookie_path)
@@ -862,7 +878,7 @@ class TwitterBot:
         """
         try:
             logger.info("trying using requests to get cookies")
-            if 'phonenumber' in self._config_dict["login"]:
+            if "phonenumber" in self._config_dict["login"]:
                 phonenumber = self._config_dict["login"]["phonenumber"]
             else:
                 phonenumber = None
@@ -870,7 +886,7 @@ class TwitterBot:
                 self._config_dict["login"]["email"],
                 self._config_dict["login"]["password"],
                 self._config_dict["login"]["screenname"],
-                phonenumber = phonenumber,
+                phonenumber=phonenumber,
                 cookie_path=self._cookie_path,
             )
             self._load_cookies()
@@ -887,7 +903,7 @@ class TwitterBot:
         self.search_timeline = self.search_timeline_graphql
         return
         try:
-            for x in self.search_timeline_graphql("world", batch_count = 20):
+            for x in self.search_timeline_graphql("world", batch_count=20):
                 tmp = x.user
                 self.search_timeline = self.search_timeline_graphql
                 logger.info("graphql search selected")
@@ -945,9 +961,9 @@ class TwitterBot:
         if r.status_code == 200:
             logger.info(f"block {user_id}: successfully sent block post!")
             response = r.json()
-            #update the block list
+            # update the block list
             if hasattr(self, "_block_list_path"):
-                self._block_list[user_id]=response["screen_name"]
+                self._block_list[user_id] = response["screen_name"]
                 save_yaml(self._block_list, self._block_list_path, "w")
         logger.debug(f"{r.status_code}, {r.text}")
 
@@ -1007,10 +1023,10 @@ class TwitterBot:
             logger.info(
                 f"ORACLE TIME!: id {user.user_id:<25} name {user.screen_name:<16} followers_count {user.followers_count:<10} days_since_reg {user.days_since_registration:<5} is {conclusion_str}"
             )
-            users_judgements[user_id]=conclusion_str
+            users_judgements[user_id] = conclusion_str
         return users_judgements
 
-    def get_interactions_from_notifications(self, update_remote_cursor = False):
+    def get_interactions_from_notifications(self, update_remote_cursor=False):
         url = TwitterBot.urls["notification_all"]
         notification_all_form = TwitterBot.notification_all_form
         r = self._session.get(url, headers=self._headers, params=notification_all_form)
@@ -1070,7 +1086,7 @@ class TwitterBot:
                 # print(notification.message.text)
                 notification_id_to_user_id[notification.id] = []
                 for e in notification.message.entities:
-                    #there might be notifications that have non-empty entities field but do not contain any user
+                    # there might be notifications that have non-empty entities field but do not contain any user
                     if e.ref is not None:
                         if e.ref.user is not None:
                             entry_user_id = int(e.ref.user.id)
@@ -1111,7 +1127,7 @@ class TwitterBot:
                 entry_user_ids = notification_id_to_user_id[entry_id]
                 for entry_user_id in entry_user_ids:
                     logger.info(f"timeline_non_cursor_notification {entry.sortIndex} {entry.content.item.clientEventInfo.element} {entry_user_id}")
-                    expanded_entry_id = str(entry_id)+"_"+str(entry_user_id)
+                    expanded_entry_id = str(entry_id) + "_" + str(entry_user_id)
                     interacting_users[expanded_entry_id] = {
                         "sort_index": entry.sortIndex,
                         "user_id": entry_user_id,
@@ -1156,7 +1172,7 @@ class TwitterBot:
                     self.update_remote_latest_cursor()  # will cause the badge to disappear
         return interacting_users
 
-    def check_notifications(self, block=True, update_remote_cursor = False):
+    def check_notifications(self, block=True, update_remote_cursor=False):
         """
         Gets the recent notifications from the endpoint.
 
@@ -1169,19 +1185,30 @@ class TwitterBot:
         """
         interacting_users = self.get_interactions_from_notifications(update_remote_cursor=update_remote_cursor)
 
-        users_judgements = self.judge_users({interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users}, block = block)
+        users_judgements = self.judge_users(
+            {interacting_users[entry_id]["user_id"]: interacting_users[entry_id]["user"] for entry_id in interacting_users}, block=block
+        )
 
         backup_events = dict()
         if self._backup_log_path is not None:
             for entry_id in interacting_users:
-                #print(interacting_users[entry_id])
-                event_time = datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"])//1000).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-                user_dict =  dataclasses.asdict(interacting_users[entry_id]["user"])
+                # print(interacting_users[entry_id])
+                event_time = (
+                    datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"]) // 1000)
+                    .replace(tzinfo=timezone.utc)
+                    .strftime("%Y-%m-%d %H:%M:%S")
+                )
+                user_dict = dataclasses.asdict(interacting_users[entry_id]["user"])
                 if event_time not in backup_events:
                     backup_events[event_time] = []
-                backup_events[event_time].append({"user": {key:value for (key,value) in user_dict.items() if value is not None}, "event_type":interacting_users[entry_id]['event_type']})
-            if len(backup_events)>0:
-                save_yaml(backup_events,self._backup_log_path,'a')
+                backup_events[event_time].append(
+                    {
+                        "user": {key: value for (key, value) in user_dict.items() if value is not None},
+                        "event_type": interacting_users[entry_id]["event_type"],
+                    }
+                )
+            if len(backup_events) > 0:
+                save_yaml(backup_events, self._backup_log_path, "a")
 
     @staticmethod
     def _cursor_from_entries(entries):
@@ -1191,7 +1218,11 @@ class TwitterBot:
                 if content.cursorType == "Bottom":
                     return content.value
             elif content.entryType == "TimelineTimelineItem":
-                if content.itemContent and (content.itemContent.cursorType == "Bottom" or content.itemContent.cursorType == "ShowMoreThreads" or content.itemContent.cursorType == "ShowMoreThreadsPrompt"):
+                if content.itemContent and (
+                    content.itemContent.cursorType == "Bottom"
+                    or content.itemContent.cursorType == "ShowMoreThreads"
+                    or content.itemContent.cursorType == "ShowMoreThreadsPrompt"
+                ):
                     return content.itemContent.value
 
     @staticmethod
@@ -1199,8 +1230,8 @@ class TwitterBot:
         """
         Extract the user profile from the result dictionary.
         """
-        #non-normal result could happen when the result is fetched from the user related endpoints
-        #impossible when the result is embedded in other returned entries
+        # non-normal result could happen when the result is fetched from the user related endpoints
+        # impossible when the result is embedded in other returned entries
         if result is None:
             return "does_not_exist", None
 
@@ -1217,7 +1248,7 @@ class TwitterBot:
                 media_count=user.media_count,
                 favourites_count=user.favourites_count,
                 display_name=user.name,
-                blocked = user.blocking,
+                blocked=user.blocking,
             )
             if result.legacy.profile_interstitial_type == "fake_account":
                 return "fake_account", p
@@ -1226,7 +1257,7 @@ class TwitterBot:
             return "normal", p
 
         if result.__typename == "UserUnavailable":
-            if not result.unavailable_message and result.reason=="NoReason":
+            if not result.unavailable_message and result.reason == "NoReason":
                 return "unavailable_for_no_reason", None
             if "suspends" in result.unavailable_message.text:
                 return "suspended", None
@@ -1246,7 +1277,7 @@ class TwitterBot:
 
     @staticmethod
     def _tweet_type(tweet):
-        #a retweet could be anything, but it's a retweet first.
+        # a retweet could be anything, but it's a retweet first.
         if "RT @" in tweet.full_text:
             return "retweeted"
         if tweet.in_reply_to_status_id_str is not None:
@@ -1279,15 +1310,15 @@ class TwitterBot:
         except:
             logger.debug(f"{result}")
 
-        #None by default
+        # None by default
         quoted_tweet_id, quoted_user_id = None, None
-        replied_tweet_id,replied_user_id = None, None
+        replied_tweet_id, replied_user_id = None, None
         retweeted_tweet_id, retweeted_user_id = None, None
 
         if tweet_type == "quote" or tweet_type == "reply_by_quote":
             try:
                 quoted_tweet_id = int(result.legacy.quoted_status_id_str)
-                #could be tombstone
+                # could be tombstone
                 if result.quoted_status_result.result.legacy is not None:
                     quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)
             except:
@@ -1310,34 +1341,41 @@ class TwitterBot:
         tweet = Tweet(
             result.rest_id,
             tweet_type=tweet_type,
-            quoted_tweet_id = quoted_tweet_id,
-            quoted_user_id = quoted_user_id,
-            replied_tweet_id = replied_tweet_id,
-            replied_user_id = replied_user_id,
-            retweeted_tweet_id = retweeted_tweet_id,
-            retweeted_user_id = retweeted_user_id,
+            quoted_tweet_id=quoted_tweet_id,
+            quoted_user_id=quoted_user_id,
+            replied_tweet_id=replied_tweet_id,
+            replied_user_id=replied_user_id,
+            retweeted_tweet_id=retweeted_tweet_id,
+            retweeted_user_id=retweeted_user_id,
             created_at=sns_timestamp_from_tweet_timestamp(result.legacy.created_at),
             source=result.source,
             text=result.legacy.full_text,
-            lang = result.legacy.lang,
-            view_count = result.views.count,
-            favorite_count = result.legacy.favorite_count,
-            reply_count = result.legacy.reply_count,
-            retweet_count = result.legacy.retweet_count,
-            quote_count = result.legacy.quote_count,
-            bookmark_count = result.legacy.bookmark_count,
-            hashtags = [x['text'] for x in result.legacy.entities.hashtags],
-            user_mentions = [TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
-            user = user
+            lang=result.legacy.lang,
+            view_count=result.views.count,
+            favorite_count=result.legacy.favorite_count,
+            reply_count=result.legacy.reply_count,
+            retweet_count=result.legacy.retweet_count,
+            quote_count=result.legacy.quote_count,
+            bookmark_count=result.legacy.bookmark_count,
+            hashtags=[x["text"] for x in result.legacy.entities.hashtags],
+            user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
+            user=user,
         )
-        #TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
-        if not ( ("advertiser-interface" in tweet.source)  or ("Twitter for Advertisers" in tweet.source)):
+        # TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
+        if not (("advertiser-interface" in tweet.source) or ("Twitter for Advertisers" in tweet.source)):
             yield tweet
 
     @staticmethod
     def _list_from_list(listdict):
         status, user = TwitterBot._status_and_user_from_result(listdict.user_results.result)
-        twitter_list = TwitterList(int(listdict.id_str),name=listdict.name,description=listdict.description,member_count=listdict.member_count,subscriber_count=listdict.subscriber_count,user=user)
+        twitter_list = TwitterList(
+            int(listdict.id_str),
+            name=listdict.name,
+            description=listdict.description,
+            member_count=listdict.member_count,
+            subscriber_count=listdict.subscriber_count,
+            user=user,
+        )
         return twitter_list
 
     @staticmethod
@@ -1353,7 +1391,7 @@ class TwitterBot:
                         result = itemContent.tweet_results.result
                         if result:
                             if result.__typename == "Tweet":
-                                #when user_id is not provided, return everything; otherwise only return tweets from user_id
+                                # when user_id is not provided, return everything; otherwise only return tweets from user_id
                                 if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
                                     yield from TwitterBot._tweet_from_result(result)
                             if result.__typename == "TweetWithVisibilityResults":
@@ -1371,7 +1409,6 @@ class TwitterBot:
                     twitter_list = itemContent.list
                     yield TwitterBot._list_from_list(twitter_list)
 
-
     def _json_headers(self):
         headers = copy.deepcopy(self._headers)
         headers["Content-Type"] = "application/json"
@@ -1380,14 +1417,14 @@ class TwitterBot:
         return headers
 
     @staticmethod
-    def _navigate_graphql_entries(session_type, url, form, session = None, headers = None):
+    def _navigate_graphql_entries(session_type, url, form, session=None, headers=None):
         while True:
             encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-            #generate session and header for guest mode
+            # generate session and header for guest mode
             if session_type != SessionType.Authenticated:
                 session, headers = TwitterBot.tmp_session_headers()
             r = session.get(url, headers=headers, params=encoded_params)
-            #print(r.status_code,r.text)
+            # print(r.status_code,r.text)
             if r.status_code != 200:
                 logger.debug(f"{r.request.url}")
                 logger.debug(f"{headers}")
@@ -1399,7 +1436,7 @@ class TwitterBot:
             response = TwitterJSON(response)
 
             data = response.data
-            if len(data)==0:
+            if len(data) == 0:
                 return
 
             if data.retweeters_timeline:
@@ -1408,6 +1445,11 @@ class TwitterBot:
                 instructions = data.threaded_conversation_with_injections_v2.instructions
             elif data.search_by_raw_query:
                 instructions = data.search_by_raw_query.search_timeline.timeline.instructions
+            elif data.viewer:
+                if data.viewer.timeline:
+                    instructions = data.viewer.timeline.timeline.instructions  # blocklist
+                elif data.viewer.muting_timeline:
+                    instructions = data.viewer.muting_timeline.timeline.instructions  # mutelist
             else:
                 result = data.user.result
                 if result.timeline_v2:
@@ -1417,12 +1459,12 @@ class TwitterBot:
                 else:
                     return
 
-            add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"] 
-            if len(add_instructions )!=0:
-                entries=add_instructions[0].entries
+            add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"]
+            if len(add_instructions) != 0:
+                entries = add_instructions[0].entries
             else:
-                entries=[]
-            entries+=[x.entry for x in instructions if x.type == "TimelineReplaceEntry"]
+                entries = []
+            entries += [x.entry for x in instructions if x.type == "TimelineReplaceEntry"]
 
             yield entries
 
@@ -1430,7 +1472,7 @@ class TwitterBot:
                 break
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)
-            #could happen when nagivating tweet threads
+            # could happen when nagivating tweet threads
             if bottom_cursor is None:
                 break
             form["variables"]["cursor"] = bottom_cursor
@@ -1443,17 +1485,17 @@ class TwitterBot:
         user_id = self.numerical_id(user_id)
 
         url = TwitterBot.urls["combined_lists"]
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         form = copy.deepcopy(TwitterBot.combined_lists_form)
         form["variables"]["userId"] = str(user_id)
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-            yield from TwitterBot._text_from_entries(entries, user_id = user_id)
+            yield from TwitterBot._text_from_entries(entries, user_id=user_id)
 
-    #@staticmethod
-    #def get_tweets_replies(user_id):
+    # @staticmethod
+    # def get_tweets_replies(user_id):
     def get_tweets_replies(self, user_id, batch_count=100):
         """
         Gets the texts from the user's tweets and replies tab.
@@ -1463,7 +1505,7 @@ class TwitterBot:
         headers = self._json_headers()
         url = TwitterBot.urls["tweets_replies"]
 
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
@@ -1474,10 +1516,10 @@ class TwitterBot:
         form["features"]["tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
         #    yield from TwitterBot._text_from_entries(entries, user_id = user_id)
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
-            yield from self._text_from_entries(entries, user_id = user_id)
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
+            yield from self._text_from_entries(entries, user_id=user_id)
 
     def get_following(self, user_id, batch_count=100):
         """
@@ -1496,10 +1538,10 @@ class TwitterBot:
         form["variables"]["userId"] = str(user_id)
         form["variables"]["count"] = batch_count
 
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = headers):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
 
-    def get_followers(self, user_id, batch_count = 100):
+    def get_followers(self, user_id, batch_count=100):
         """
         Gets the list of followers.
         Returns a list of TwitterUserProfile.
@@ -1516,10 +1558,10 @@ class TwitterBot:
         # set userID in form
         form["variables"]["userId"] = str(user_id)
 
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
 
-    def get_retweeters(self, tweet_url, batch_count = 100):
+    def get_retweeters(self, tweet_url, batch_count=100):
         """
         Gets the list of visible (not locked) retweeters.
         Returns a list of TwitterUserProfile.
@@ -1538,7 +1580,7 @@ class TwitterBot:
         form["variables"]["tweetId"] = tweet_url.split("/")[-1]
         form["variables"]["count"] = batch_count
 
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers = headers):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
 
     def delete_tweet(self, tweet_id):
@@ -1549,26 +1591,23 @@ class TwitterBot:
                 "tweet_id": str(tweet_id),
                 "dark_request": False,
             },
-            "queryId": "VaenaVgh5q5ih7kvyVjgtg"
+            "queryId": "VaenaVgh5q5ih7kvyVjgtg",
         }
         r = self._session.post(url, headers=headers, data=json.dumps(form))
         logger.debug(f"{r.status_code}, {r.text}")
 
-        if r.status_code==200:
+        if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
             return response.data.delete_tweet.tweet_results
 
-    def _tweet_creation_form(self, text, media_ids=None, conversation_control = None):
+    def _tweet_creation_form(self, text, media_ids=None, conversation_control=None):
         form = copy.deepcopy(TwitterBot.create_tweet_form)
         form["variables"]["tweet_text"] = text
 
         if media_ids is not None:
             for media_id in media_ids:
-                form["variables"]["media"]["media_entities"].append({
-                    "media_id": media_id,
-                    "tagged_users": []
-                })
+                form["variables"]["media"]["media_entities"].append({"media_id": media_id, "tagged_users": []})
         if conversation_control is not None:
             form["variables"]["conversation_control"] = {"mode": conversation_control}
 
@@ -1579,8 +1618,8 @@ class TwitterBot:
 
         return form
 
-    def _reply_creation_form(self, tweet_id, text, media_ids = None):
-        form = self._tweet_creation_form(text, media_ids = media_ids)
+    def _reply_creation_form(self, tweet_id, text, media_ids=None):
+        form = self._tweet_creation_form(text, media_ids=media_ids)
         form["variables"]["reply"] = {"in_reply_to_tweet_id": str(tweet_id), "exclude_reply_user_ids": []}
         form["variables"]["batch_compose"] = "BatchSubsequent"
 
@@ -1600,79 +1639,86 @@ class TwitterBot:
         return headers
 
     def _upload_image(self, path):
-        #INIT: regular header
+        # INIT: regular header
         headers = copy.deepcopy(self._headers)
-        headers["Host"]="upload.twitter.com"
+        headers["Host"] = "upload.twitter.com"
         url = "https://upload.twitter.com/i/media/upload.json"
         try:
-            with open(path,"rb") as f:
+            with open(path, "rb") as f:
                 binary_data = f.read()
             total_img_size = len(binary_data)
-            #file too large!
+            # file too large!
             if total_img_size > 5242880:
                 return None
             img_suffix = image_file_type(path).lower()
-            upload_init_form = {"command": "INIT", "total_bytes": total_img_size, "media_type": f"image/{img_suffix}", "media_category": "tweet_image"}
+            upload_init_form = {
+                "command": "INIT",
+                "total_bytes": total_img_size,
+                "media_type": f"image/{img_suffix}",
+                "media_category": "tweet_image",
+            }
             r = self._session.post(url, headers=headers, params=upload_init_form)
             logger.debug(f"{r.status_code} {r.text}")
-            if r.status_code!=202:
+            if r.status_code != 202:
                 return None
             response = r.json()
             media_id = response["media_id"]
 
-            #APPEND
+            # APPEND
             chunksize = 2048000
             import math
-            n_segments = math.ceil(total_img_size/chunksize)
+
+            n_segments = math.ceil(total_img_size / chunksize)
             current_segment = 0
             starting_byte = 0
             ending_byte = 0
-            #the headers content-type is automatically set to json after the last request; have to delete it for correct multi-part form post
+            # the headers content-type is automatically set to json after the last request; have to delete it for correct multi-part form post
             del headers["Content-Type"]
             while ending_byte < total_img_size:
-                ending_byte = min(total_img_size,starting_byte+chunksize)
+                ending_byte = min(total_img_size, starting_byte + chunksize)
                 logger.debug(f"{starting_byte}, {ending_byte}")
                 upload_append_form = {"command": "APPEND", "media_id": media_id, "segment_index": current_segment}
                 upload_file = {
-                    'media': ("blob", binary_data[starting_byte:ending_byte]),
+                    "media": ("blob", binary_data[starting_byte:ending_byte]),
                 }
                 r = self._session.post(url, headers=headers, params=upload_append_form, files=upload_file)
-                if r.status_code!=204:
+                if r.status_code != 204:
                     return None
                 logger.debug(f"{r.status_code} {r.text}")
                 starting_byte = ending_byte
-                current_segment+=1
+                current_segment += 1
 
-            #FINALIZE
-            #del headers["Content-Type"]
+            # FINALIZE
+            # del headers["Content-Type"]
             upload_finalize_form = {"command": "FINALIZE", "media_id": media_id}
             r = self._session.post(url, headers=headers, params=upload_finalize_form)
             logger.debug(f"{r.status_code} {r.text}")
-            if r.status_code!=201:
+            if r.status_code != 201:
                 return None
             else:
                 return media_id
         except:
             return None
 
-    def _upload_images(self,image_paths = None):
+    def _upload_images(self, image_paths=None):
         if image_paths is not None:
-            #ignore extra paths
+            # ignore extra paths
             image_paths = image_paths[:4]
             media_ids = [self._upload_image(image_path) for image_path in image_paths]
-            #ignore upload failures
+            # ignore upload failures
             media_ids = [x for x in media_ids if x is not None]
         else:
             media_ids = None
         return media_ids
 
-    def conversation_control_change(self, tweet_id = None, mode = None):
-        #can only be used on the original tweet in a thread
+    def conversation_control_change(self, tweet_id=None, mode=None):
+        # can only be used on the original tweet in a thread
         logger.debug("conversation control change")
         url = "https://twitter.com/i/api/graphql/hb1elGcj6769uT8qVYqtjw/ConversationControlChange"
         headers = self._json_headers()
-        form = {"variables": dict(),
-        "queryId": "hb1elGcj6769uT8qVYqtjw",
+        form = {
+            "variables": dict(),
+            "queryId": "hb1elGcj6769uT8qVYqtjw",
         }
         form["variables"]["tweet_id"] = str(tweet_id)
         form["variables"]["mode"] = mode
@@ -1685,12 +1731,12 @@ class TwitterBot:
         if response.data.tweet_conversation_control_put == "Done":
             logger.info("{tweet_id} conversation control change success!")
 
-    def create_tweet(self, text, image_paths = None, conversation_control = None):
-        #conversation_control vals: ByInvitation, Community
+    def create_tweet(self, text, image_paths=None, conversation_control=None):
+        # conversation_control vals: ByInvitation, Community
         logger.debug("tweet")
         headers = self._tweet_creation_headers()
         media_ids = self._upload_images(image_paths)
-        form = self._tweet_creation_form(text,media_ids=media_ids, conversation_control = conversation_control)
+        form = self._tweet_creation_form(text, media_ids=media_ids, conversation_control=conversation_control)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
@@ -1704,12 +1750,12 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def reply_to_tweet(self, tweet_id, text, image_paths = None):
+    def reply_to_tweet(self, tweet_id, text, image_paths=None):
         logger.debug("reply")
 
         headers = self._reply_creation_headers()
         media_ids = self._upload_images(image_paths)
-        form = self._reply_creation_form(tweet_id, text,media_ids=media_ids)
+        form = self._reply_creation_form(tweet_id, text, media_ids=media_ids)
 
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
 
@@ -1723,18 +1769,18 @@ class TwitterBot:
         if r.status_code == 200:
             return response.data.create_tweet.tweet_results.result.rest_id
 
-    def create_thread(self, tweets, conversation_control = None, min_interval = 10, max_interval = 30):
-        #tweets: a list of dicts
+    def create_thread(self, tweets, conversation_control=None, min_interval=10, max_interval=30):
+        # tweets: a list of dicts
         initial_tweet = tweets[0]
         rest_tweets = tweets[1:]
         new_tweets_ids = []
 
-        tweet_id = self.create_tweet(initial_tweet["text"],image_paths = initial_tweet["imgs"], conversation_control = conversation_control)
+        tweet_id = self.create_tweet(initial_tweet["text"], image_paths=initial_tweet["imgs"], conversation_control=conversation_control)
         new_tweets_ids.append(tweet_id)
         sleep(random.randint(min_interval, max_interval))
 
         for tweet in rest_tweets:
-            tweet_id = self.reply_to_tweet(tweet_id, tweet["text"], image_paths = tweet["imgs"])
+            tweet_id = self.reply_to_tweet(tweet_id, tweet["text"], image_paths=tweet["imgs"])
             new_tweets_ids.append(tweet_id)
             sleep(random.randint(min_interval, max_interval))
         return new_tweets_ids
@@ -1743,7 +1789,7 @@ class TwitterBot:
     def tmp_session_headers():
         if TwitterBot.tmp_count == 0:
             tmp_session = requests.Session()
-            tmp_session.mount('https://twitter.com', DESAdapter())
+            tmp_session.mount("https://twitter.com", DESAdapter())
 
             tmp_headers = copy.deepcopy(TwitterBot.default_headers)
 
@@ -1765,60 +1811,60 @@ class TwitterBot:
             TwitterBot.tmp_session = tmp_session
             TwitterBot.tmp_headers = tmp_headers
 
-        TwitterBot.tmp_count+=1
+        TwitterBot.tmp_count += 1
 
         if TwitterBot.tmp_count == 100:
             TwitterBot.tmp_count = 0
 
         return TwitterBot.tmp_session, TwitterBot.tmp_headers
 
-
-    #@staticmethod
-    #def search_timeline_graphql(query):
-    def search_timeline_graphql(self, query, batch_count = 100):
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+    # @staticmethod
+    # def search_timeline_graphql(query):
+    def search_timeline_graphql(self, query, batch_count=100):
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.info("search (graphql, logged in)")
 
-        #url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
+        # url = "https://twitter.com/i/api/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline"
         url = "https://twitter.com/i/api/graphql/WeHGEHYtJA0sfOOFIBMt8g/SearchTimeline"
 
         form = {
-            'variables' : {
+            "variables": {
                 "rawQuery": query,
                 "count": batch_count,
                 "product": "Latest",
                 "querySource": "typed_query",
-                },
-            'features': TwitterBot.standard_graphql_features,
+            },
+            "features": TwitterBot.standard_graphql_features,
         }
 
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = self._json_headers()):
+        # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=self._json_headers()):
             yield from TwitterBot._text_from_entries(entries)
 
-    #TODO: not finished
-    def search_timeline_login_curl(self,query):
+    # TODO: not finished
+    def search_timeline_login_curl(self, query):
         url = "https://twitter.com/i/api/2/search/adaptive.json"
         form = copy.deepcopy(TwitterBot.adaptive_search_form)
 
-        form['q']=query
-        form['requestContext']="launch"
-        form["include_ext_profile_image_shape"]="1"
+        form["q"] = query
+        form["requestContext"] = "launch"
+        form["include_ext_profile_image_shape"] = "1"
 
         headers = copy.deepcopy(self._headers)
-        headers["Referer"]="https://twitter.com/search?q="+quote(query.encode("utf-8"))+"&src=typed_query&f=live"
+        headers["Referer"] = "https://twitter.com/search?q=" + quote(query.encode("utf-8")) + "&src=typed_query&f=live"
 
-        lang = self._session.cookies['lang']
-        ct0 = self._session.cookies['ct0']
-        _twitter_sess=self._session.cookies['_twitter_sess']
-        kdt=self._session.cookies['kdt']
-        auth_token=self._session.cookies['auth_token']
-        twid=self._session.cookies['twid']
+        lang = self._session.cookies["lang"]
+        ct0 = self._session.cookies["ct0"]
+        _twitter_sess = self._session.cookies["_twitter_sess"]
+        kdt = self._session.cookies["kdt"]
+        auth_token = self._session.cookies["auth_token"]
+        twid = self._session.cookies["twid"]
 
         import subprocess
+
         curl_command = f"curl 'https://twitter.com/i/api/2/search/adaptive.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&include_ext_has_nft_avatar=1&include_ext_is_blue_verified=1&include_ext_verified_type=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_ext_alt_text=true&include_ext_limited_action_results=false&include_quote_count=true&include_reply_count=1&tweet_mode=extended&include_ext_views=true&include_entities=true&include_user_entities=true&include_ext_media_color=true&include_ext_media_availability=true&include_ext_sensitive_media_warning=true&include_ext_trusted_friends_metadata=true&send_error_codes=true&simple_quoted_tweet=true&count=100&ext=mediaStats%2ChighlightedLabel%2ChasNftAvatar%2CvoiceInfo%2CbirdwatchPivot%2Cenrichments%2CsuperFollowMetadata%2CunmentionInfo%2CeditControl%2Cvibe&tweet_search_mode=live&query_source=typed_query&include_ext_edit_control=true&spelling_corrections=1&pc=1&q={query}&requestContext=launch&include_ext_profile_image_shape=1'    -H 'accept: */*'   -H 'accept-language: en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3'   -H 'authorization: Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'   -H 'cache-control: no-cache'   -H 'cookie:  lang=en; _twitter_sess={_twitter_sess}; kdt={kdt}; auth_token={auth_token}; ct0={ct0}; twid={twid}'   -H 'pragma: no-cache'   -H 'referer: https://twitter.com/search?q={query}&src=typed_query&f=live'   -H 'sec-fetch-dest: empty'   -H 'sec-fetch-mode: cors'   -H 'sec-fetch-site: same-site'   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:110.0) Gecko/20100101 Firefox/110.0'   -H 'x-csrf-token: {ct0}'   -H 'x-twitter-active-user: yes'   -H 'x-twitter-auth-type: OAuth2Session'   -H 'x-twitter-client-language: en'  -H  'connection: keep-alive' --compressed"
         p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
         response = json.loads(p)
@@ -1826,28 +1872,30 @@ class TwitterBot:
         response = TwitterJSON(response)
         logger.debug(f"response (curl) {list(response.globalObjects.tweets)[0]}")
 
-    def search_timeline_login_legacy(self,query):
+    def search_timeline_login_legacy(self, query):
         url = "https://twitter.com/i/api/2/search/adaptive.json"
 
         headers = copy.deepcopy(self._headers)
-        headers["Referer"]="https://twitter.com/search?q="+quote(query.encode("utf-8"))+"&src=typed_query&f=live"
-        del headers["Host"] #default: api.twitter.com
+        headers["Referer"] = "https://twitter.com/search?q=" + quote(query.encode("utf-8")) + "&src=typed_query&f=live"
+        del headers["Host"]  # default: api.twitter.com
 
         form = copy.deepcopy(TwitterBot.adaptive_search_form)
-        form['q']=query
-        #form['requestContext']="launch"
-        form["include_ext_profile_image_shape"]="1"
+        form["q"] = query
+        # form['requestContext']="launch"
+        form["include_ext_profile_image_shape"] = "1"
 
         while True:
             r = self._session.get(url, headers=headers, params=form)
             if r.status_code != 200:
                 logger.debug(f"{r.status_code}, {r.text}")
                 break
-            #print(r.text)
+            # print(r.text)
 
-            logger.info(f"x-rate-limit-remaining: {r.headers['x-rate-limit-remaining']} until x-rate-limit-reset: {int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()}")
-            if int(r.headers['x-rate-limit-remaining']) == 0:
-                sleep(int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()+1)
+            logger.info(
+                f"x-rate-limit-remaining: {r.headers['x-rate-limit-remaining']} until x-rate-limit-reset: {int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()}"
+            )
+            if int(r.headers["x-rate-limit-remaining"]) == 0:
+                sleep(int(r.headers["x-rate-limit-reset"]) - datetime.now(timezone.utc).timestamp() + 1)
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1857,7 +1905,7 @@ class TwitterBot:
             users = objects.users
             entries = response.timeline.instructions[0].addEntries.entries
 
-            if len(entries)<=2:
+            if len(entries) <= 2:
                 break
 
             for tweet_id in tweets:
@@ -1885,56 +1933,60 @@ class TwitterBot:
                     created_at=sns_timestamp_from_tweet_timestamp(tweet.created_at),
                     source=tweet.source,
                     text=tweet.full_text,
-                    lang = tweet.lang,
-                    view_count = tweet.ext_views.count,
-                    favorite_count = tweet.favorite_count,
-                    reply_count = tweet.reply_count,
-                    retweet_count = tweet.retweet_count,
-                    quote_count = tweet.quote_count,
-                    hashtags = [x['text'] for x in tweet.entities.hashtags],
-                    user_mentions = [TwitterUserProfile(x.id, x.screen_name) for x in tweet.entities.user_mentions],
-                    user = p
+                    lang=tweet.lang,
+                    view_count=tweet.ext_views.count,
+                    favorite_count=tweet.favorite_count,
+                    reply_count=tweet.reply_count,
+                    retweet_count=tweet.retweet_count,
+                    quote_count=tweet.quote_count,
+                    hashtags=[x["text"] for x in tweet.entities.hashtags],
+                    user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in tweet.entities.user_mentions],
+                    user=p,
                 )
-                if not ( ("advertiser-interface" in tweet.source)  or ("Twitter for Advertisers" in tweet.source)):
+                if not (("advertiser-interface" in tweet.source) or ("Twitter for Advertisers" in tweet.source)):
                     yield tweet
-            bottom_entries = [e for e in entries if 'cursor-bottom' in e.entryId]
+            bottom_entries = [e for e in entries if "cursor-bottom" in e.entryId]
             replace_instructions = [x for x in response.timeline.instructions if x.replaceEntry is not None]
 
-            if len(bottom_entries)>0:
-                bottom_cursor = [e for e in entries if 'cursor-bottom' in e.entryId][0].content.operation.cursor.value
-            elif len(replace_instructions)>0:
-                bottom_cursor = [x.replaceEntry.entry for x in replace_instructions if 'cursor-bottom' in x.replaceEntry.entryIdToReplace][0].content.operation.cursor.value
+            if len(bottom_entries) > 0:
+                bottom_cursor = [e for e in entries if "cursor-bottom" in e.entryId][0].content.operation.cursor.value
+            elif len(replace_instructions) > 0:
+                bottom_cursor = [x.replaceEntry.entry for x in replace_instructions if "cursor-bottom" in x.replaceEntry.entryIdToReplace][
+                    0
+                ].content.operation.cursor.value
             else:
-                bottom_cursor= [e for e in entries if e.content.operation is not None and e.content.operation.cursor.cursorType=="Bottom"][0].content.operation.cursor.value
+                bottom_cursor = [e for e in entries if e.content.operation is not None and e.content.operation.cursor.cursorType == "Bottom"][
+                    0
+                ].content.operation.cursor.value
 
-            form['cursor']=bottom_cursor
+            form["cursor"] = bottom_cursor
 
-            if r.headers['x-rate-limit-remaining'] == 0:
+            if r.headers["x-rate-limit-remaining"] == 0:
                 logger.info("rate limit reached")
                 break
 
-        #import subprocess
-        #p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
-        #response = json.loads(p)
-        #print("\nurl:::",r.url)
-        #print("\nheaders:::",r.request.headers)
-        #print("\nresponse headers:::", r.headers)
+        # import subprocess
+        # p = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+        # response = json.loads(p)
+        # print("\nurl:::",r.url)
+        # print("\nheaders:::",r.request.headers)
+        # print("\nresponse headers:::", r.headers)
 
-    #@staticmethod
-    #def tweet_detail(tweet_id):
+    # @staticmethod
+    # def tweet_detail(tweet_id):
     def tweet_detail(self, tweet_id):
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.debug("get tweet details")
 
-        url = TwitterBot.urls["tweet_detail"]     
+        url = TwitterBot.urls["tweet_detail"]
         form = copy.deepcopy(TwitterBot.tweet_detail_form)
 
-        form["variables"]["focalTweetId"]=str(tweet_id)
+        form["variables"]["focalTweetId"] = str(tweet_id)
         form["features"]["blue_business_profile_image_shape_enabled"] = False
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session = self._session, headers = self._json_headers()):
+        # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=self._json_headers()):
             if entries is None:
                 return None
             else:
@@ -1947,15 +1999,15 @@ class TwitterBot:
         form = {"id": tweet_id, "lang": "en"}
         headers = {
             "Accept": "*/*",
-            "Origin":"https://platform.twitter.com",
-            "Referer":"https://platform.twitter.com/",
+            "Origin": "https://platform.twitter.com",
+            "Referer": "https://platform.twitter.com/",
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "en-US,en;q=0.9",
-            "Cache-Control":"no-cache",
-            "Pragma":"no-cache",
-            "Sec-Fetch-Dest":"empty",
-            "Sec-Fetch-Mode":"cors",
-            "Sec-Fetch-Site":"cross-site",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "cross-site",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
         }
         r = requests.get(url, headers=headers, params=form)
@@ -1973,32 +2025,32 @@ class TwitterBot:
                 display_name=user.name,
             )
             otherinfo = dict()
-            #if it's a retweet, platform.twitter will just return the tweet being retweeted
-            #not a retweet
+            # if it's a retweet, platform.twitter will just return the tweet being retweeted
+            # not a retweet
             if this_id == tweet_id:
-                otherinfo["user"]=p
+                otherinfo["user"] = p
                 if response.in_reply_to_status_id_str:
-                    otherinfo["replied_tweet_id"] = int( response.in_reply_to_status_id_str)
+                    otherinfo["replied_tweet_id"] = int(response.in_reply_to_status_id_str)
                 if response.in_reply_to_user_id_str:
                     otherinfo["replied_user_id"] = int(response.in_reply_to_user_id_str)
                 quoted_tweet = response.quoted_tweet
                 if quoted_tweet:
                     otherinfo["quoted_tweet_id"] = int(quoted_tweet.id_str)
                     otherinfo["quoted_user_id"] = int(quoted_tweet.user.id_str)
-            #a retweet
+            # a retweet
             else:
                 otherinfo["retweeted_tweet_id"] = this_id
                 otherinfo["retweeted_user_id"] = int(user.id_str)
 
             tweet = Tweet(
                 int(tweet_id),
-                tweet_type = TwitterBot._cdn_tweet_type(otherinfo),
+                tweet_type=TwitterBot._cdn_tweet_type(otherinfo),
                 created_at=datetime.strptime(response.created_at, "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=timezone.utc).isoformat(),
                 text=response.text,
-                lang = response.lang,
-                hashtags = [x['text'] for x in response.entities.hashtags],
-                user_mentions = [TwitterUserProfile(int(x.id_str), x.screen_name) for x in response.entities.user_mentions],
-                **otherinfo
+                lang=response.lang,
+                hashtags=[x["text"] for x in response.entities.hashtags],
+                user_mentions=[TwitterUserProfile(int(x.id_str), x.screen_name) for x in response.entities.user_mentions],
+                **otherinfo,
             )
             return tweet
         return None
@@ -2008,18 +2060,38 @@ class TwitterBot:
         url = "https://api.twitter.com/1.1/account/pin_tweet.json"
         form = {"tweet_mode": "extended", "id": tweet_id}
         r = self._session.post(url, headers=self._headers, params=form)
-        if r.status_code!=200:
+        if r.status_code != 200:
             logger.debug(f"{r.status_code}, {r.text}")
         else:
             logger.info(f"{tweet_id} pinned!")
 
-    #@staticmethod
-    #def user_by_screen_name(screen_name):
+    def get_blocked(self):
+        url = "https://twitter.com/i/api/graphql/kpS7GZQ96pe3n5dIzKS2wg/BlockedAccountsAll"
+        form = copy.deepcopy(TwitterBot.blocklist_form)
+        form["features"]["responsive_web_media_download_video_enabled"] = False
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+        headers = self._json_headers()
+
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
+            yield from self._users_from_entries(entries)
+
+    def get_muted(self):
+        url = "https://twitter.com/i/api/graphql/g40AoFEAdKggdYivmA2bSg/MutedAccounts"
+        form = copy.deepcopy(TwitterBot.blocklist_form)
+        form["features"]["responsive_web_media_download_video_enabled"] = False
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+        headers = self._json_headers()
+
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
+            yield from self._users_from_entries(entries)
+
+    # @staticmethod
+    # def user_by_screen_name(screen_name):
     def user_by_screen_name(self, screen_name):
         """
         Returns the account status and the user profile, given user's screen_name.
         """
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = TwitterBot.urls["user_by_screen_name"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -2028,8 +2100,8 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = False
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        r = self._session.get(url, headers = self._json_headers(),params=encoded_params)
+        # r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -2038,13 +2110,13 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    #@staticmethod
-    #def user_by_id(user_id):
+    # @staticmethod
+    # def user_by_id(user_id):
     def user_by_id(self, user_id):
         """
         Returns the account status and the user profile, given user's id.
         """
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = TwitterBot.urls["user_by_rest_id"]
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -2053,8 +2125,8 @@ class TwitterBot:
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
 
-        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        r = self._session.get(url, headers = self._json_headers(),params=encoded_params)
+        # r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -2063,49 +2135,49 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    #@staticmethod
-    #def status_by_screen_name(screen_name):
+    # @staticmethod
+    # def status_by_screen_name(screen_name):
     def status_by_screen_name(self, screen_name):
         """
         Probe the status of an account, given user's screen_name.
         """
-        #values = TwitterBot.user_by_screen_name(screen_name)
+        # values = TwitterBot.user_by_screen_name(screen_name)
         values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return status
 
-    #@staticmethod
-    #def status_by_id(user_id):
+    # @staticmethod
+    # def status_by_id(user_id):
     def status_by_id(self, user_id):
         """
         Probe the status of an account, given user's id.
         """
-        #values = TwitterBot.user_by_id(user_id)
+        # values = TwitterBot.user_by_id(user_id)
         values = self.user_by_id(user_id)
         if values:
             status, user_profile = values
             return status
 
-    #@staticmethod
-    #def id_from_screen_name(screen_name):
+    # @staticmethod
+    # def id_from_screen_name(screen_name):
     def id_from_screen_name(self, screen_name):
         """
         Convert user id to screen name
         """
-        #values = TwitterBot.user_by_screen_name(screen_name)
+        # values = TwitterBot.user_by_screen_name(screen_name)
         values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return user_profile.user_id
 
-    #@staticmethod
-    #def screen_name_from_id(user_id):
+    # @staticmethod
+    # def screen_name_from_id(user_id):
     def screen_name_from_id(self, user_id):
         """
         Convert screen name to user id
         """
-        #values = TwitterBot.user_by_id(user_id)
+        # values = TwitterBot.user_by_id(user_id)
         values = self.user_by_id(user_id)
         if values:
             status, user_profile = values
@@ -2118,6 +2190,7 @@ class TwitterBot:
             int_user_id = int(self.id_from_screen_name(user_id))
 
         return int_user_id
+
 
 if __name__ == "__main__":
     pass

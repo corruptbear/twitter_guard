@@ -4,6 +4,8 @@ import secrets
 from enum import Enum
 from time import sleep
 import copy
+import atexit
+
 from .utils import *
 from .apifree_bot import TwitterBot
 
@@ -397,6 +399,15 @@ class ReportHandler:
 
         reporter_id = unquote(self._session.cookies['twid']).replace('"', '')
         self.reporter_id = int(reporter_id.split("=")[1])
+        atexit.register(self._cleanup)
+
+    def _cleanup(self):
+        #close the async session
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._close_session())
+
+    async def _close_session(self):
+        await self._async_session.close()
 
     def _prepare_report_profile_form(self, screen_name, user_id):
         form = copy.deepcopy(ReportHandler.report_get_token_payload)
