@@ -3,7 +3,7 @@ import sys
 import traceback
 
 import requests
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode, quote, unquote
 import http.cookiejar
 
 import dataclasses
@@ -1723,7 +1723,7 @@ class TwitterBot:
         form["variables"]["tweet_id"] = str(tweet_id)
         form["variables"]["mode"] = mode
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code} {t.text}")
+        logger.debug(f"{r.status_code} {r.text}")
         r.raise_for_status()
 
         response = r.json()
@@ -2084,6 +2084,32 @@ class TwitterBot:
 
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
+
+    def get_current_id(self):
+        current_id = unquote(self._session.cookies['twid']).replace('"', '')
+        current_id = int(current_id.split("=")[1])
+        return current_id
+
+    def unsubscribe_email(self):
+        url = "https://twitter.com/i/api/graphql/2qKKYFQift8p5-J1k6kqxQ/WriteEmailNotificationSettings"
+        form = {
+            "queryId": url.split("/")[-2].strip(),
+            "variables": {
+                "settings": {
+                    "send_twitter_emails": False,
+                },
+                "userId": self.get_current_id(),
+            }
+        }
+        headers = self._json_headers()
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
+        logger.debug(f"{r.status_code} {r.text}")
+        r.raise_for_status()
+
+        response = r.json()
+        response = TwitterJSON(response)
+        if response.data.user_notifications_email_notifications_put == "Done":
+            logger.info("{tweet_id} email notification change success!")
 
     # @staticmethod
     # def user_by_screen_name(screen_name):
