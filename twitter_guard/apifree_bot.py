@@ -4,6 +4,7 @@ import traceback
 
 import requests
 from urllib.parse import urlencode, quote, unquote
+from urllib.request import urlopen, Request
 import http.cookiejar
 
 import dataclasses
@@ -82,6 +83,45 @@ def display_session_cookies(s):
     for x in s.cookies:
         logger.debug(f"{x}")
 
+def make_cookie_string(session_cookies):
+    cookie_strings = []
+
+    # Iterate through the cookies and build cookie strings
+    for cookie_name, cookie_value in session_cookies.items():
+        cookie_string = f"{cookie_name}={cookie_value}"
+        cookie_strings.append(cookie_string)
+
+    # Join the cookie strings using the ";" separator
+    cookies_string_with_separator = "; ".join(cookie_strings)
+    return cookies_string_with_separator
+
+def set_cookies_from_headers(headers_list, session = None):
+    #headers_list: from getheaders()
+    cookies = {x[1].split("=")[0]:"=".join(x[1].split("=")[1:]).split(";")[0] for x in headers_list if x[0]=="set-cookie"}
+    for key in cookies:
+        session.cookies.set(key, cookies[key])
+
+def urllib_post(url, headers = None, payload = None, session = None):
+    #add cookie string
+    cookie_string = make_cookie_string(session.cookies)
+    headers["Cookie"]=cookie_string
+
+    req = Request(url, headers=headers, method="POST", data=json.dumps(payload).encode("utf-8"))
+    with urlopen(req, timeout=10) as response:
+        headers = response.headers
+        status_code = response.status
+        content = response.read()
+        headers_list = response.getheaders()
+        set_cookies_from_headers(headers_list, session = session)
+
+        # Create a requests Response object
+        r = requests.Response()
+        # Populate the requests Response object with data
+        r.url = url
+        r.status_code = status_code
+        r.headers = headers
+        r._content = content
+        return r
 
 def genct0():
     """
@@ -244,25 +284,26 @@ class TwitterLoginBot:
     def __init__(self, email, password, screenname, phonenumber=None, cookie_path=None):
         self._headers = {
             "Host": "api.twitter.com",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
             "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
+            #"Accept-Encoding": "gzip, deflate, br",
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
             "Referer": "https://twitter.com/",
             # "x-twitter-polling": "true",
-            # "x-twitter-auth-type": "OAuth2Session",
+            #"x-twitter-auth-type": "OAuth2Session",
             "x-twitter-client-language": "en",
             "x-twitter-active-user": "yes",
             "Origin": "https://twitter.com",
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-site",
-            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+            "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
             "Connection": "keep-alive",
             "TE": "trailers",
+            #"X-Client-Uuid": "d1ea869c-5118-4a8b-8e21-2c7620f0e84d",
         }
 
         self._session = requests.Session()
@@ -478,6 +519,7 @@ class TwitterLoginBot:
 
     def _prepare_next_login_task(self, r):
         logger.info(r.status_code)
+        logger.debug(f"_prepare_next_login_task: {r.text}")
         j = r.json()
         self.login_flow_token = j["flow_token"]
         subtasks = j["subtasks"]
@@ -516,11 +558,12 @@ class TwitterLoginBot:
             self._customize_headers("get_sso")
             self.get_sso_payload["flow_token"] = self.login_flow_token
 
-            r = self._session.post(
-                "https://api.twitter.com/1.1/onboarding/task.json",
-                headers=self._headers,
-                data=json.dumps(self.get_sso_payload),
-            )
+            #r = self._session.post(
+            #    "https://api.twitter.com/1.1/onboarding/task.json",
+            #    headers=self._headers,
+            #    data=json.dumps(self.get_sso_payload),
+            #)
+            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers = self._headers, payload = self.get_sso_payload, session = self._session)
 
         else:
             payload = self.tasks[task]["payload"]
@@ -529,11 +572,12 @@ class TwitterLoginBot:
             if task == 8:
                 payload["subtask_inputs"][0]["enter_text"]["text"] = input(f"Enter Twitter Confirmation Code sent to {self._email}")
 
-            r = self._session.post(
-                "https://api.twitter.com/1.1/onboarding/task.json",
-                headers=self._headers,
-                data=json.dumps(payload),
-            )
+            #r = self._session.post(
+            #    "https://api.twitter.com/1.1/onboarding/task.json",
+            #    headers=self._headers,
+            #    data=json.dumps(payload),
+            #)
+            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers = self._headers, payload = payload, session = self._session)
 
         self._prepare_next_login_task(r)
 
@@ -554,6 +598,7 @@ class TwitterLoginBot:
             r = self._session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=self._headers)
             if r.status_code == 200:
                 self._headers["x-guest-token"] = r.json()["guest_token"]
+                self._session.cookies.set("gt", self._headers["x-guest-token"])
                 logger.debug("got guest token from the endpoint")
 
         # the ct0 value is just a random 32-character string generated from random bytes at client side
@@ -562,16 +607,15 @@ class TwitterLoginBot:
         # set the headers accordingly
         self._headers["x-csrf-token"] = self._session.cookies.get("ct0")
 
-        # display_session_cookies(self._session)
-
-        r = self._session.post(
-            "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login",
-            headers=self._headers,
-            params=self.get_token_payload,
-        )
+        #r = self._session.post(
+        #    "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login",
+        #    headers=self._headers,
+        #    params=self.get_token_payload,
+        #)
+        url = "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login"
+        r = urllib_post(url, headers = self._headers, payload = self.get_token_payload, session = self._session)
 
         self._prepare_next_login_task(r)
-
         # att is set by the response cookie
 
 
@@ -752,7 +796,7 @@ class TwitterBot:
     }
 
     default_headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Accept": "*/*",
         "Accept-Language": "en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3",
         "Accept-Encoding": "gzip, deflate, br",
@@ -2008,7 +2052,7 @@ class TwitterBot:
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "cross-site",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         }
         r = requests.get(url, headers=headers, params=form)
         logger.debug(f"{r.status_code} {r.text}")
@@ -2066,6 +2110,9 @@ class TwitterBot:
             logger.info(f"{tweet_id} pinned!")
 
     def get_blocked(self):
+        """
+        Get the list of blocked accounts.
+        """
         url = "https://twitter.com/i/api/graphql/kpS7GZQ96pe3n5dIzKS2wg/BlockedAccountsAll"
         form = copy.deepcopy(TwitterBot.blocklist_form)
         form["features"]["responsive_web_media_download_video_enabled"] = False
@@ -2076,6 +2123,9 @@ class TwitterBot:
             yield from self._users_from_entries(entries)
 
     def get_muted(self):
+        """
+        Get the list of muted accounts
+        """
         url = "https://twitter.com/i/api/graphql/g40AoFEAdKggdYivmA2bSg/MutedAccounts"
         form = copy.deepcopy(TwitterBot.blocklist_form)
         form["features"]["responsive_web_media_download_video_enabled"] = False
@@ -2086,11 +2136,17 @@ class TwitterBot:
             yield from self._users_from_entries(entries)
 
     def get_current_id(self):
+        """
+        Returns the numerical id of the current account
+        """
         current_id = unquote(self._session.cookies['twid']).replace('"', '')
         current_id = int(current_id.split("=")[1])
         return current_id
 
     def unsubscribe_email(self):
+        """
+        Turns off email notifications
+        """
         url = "https://twitter.com/i/api/graphql/2qKKYFQift8p5-J1k6kqxQ/WriteEmailNotificationSettings"
         form = {
             "queryId": url.split("/")[-2].strip(),
