@@ -35,6 +35,7 @@ setup_args = {
              ],
     'include_package_data': True,
     'install_requires': [
+        'aiohttp~=3.8.4',
         'matplotlib~=3.7.1',
         'numpy~=1.22.3',
         'pyparsing~=3.0.9',
@@ -43,7 +44,7 @@ setup_args = {
         'PyYAML~=6.0',
         'requests>=2.31.0',
         'selenium>=4.8.3',
-        'webdriver_manager==3.8.5',
+        'webdriver_manager~=3.8.5',
     ],
     'zip_safe': False
 }
