@@ -1605,7 +1605,7 @@ class TwitterBot:
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
 
-    def get_retweeters(self, tweet_url, batch_count=100):
+    def get_retweeters(self, tweet_id, batch_count=100):
         """
         Gets the list of visible (not locked) retweeters.
         Returns a list of TwitterUserProfile.
@@ -1621,7 +1621,7 @@ class TwitterBot:
         # del form["features"]["longform_notetweets_richtext_consumption_enabled"]
 
         # set tweetId in form
-        form["variables"]["tweetId"] = tweet_url.split("/")[-1]
+        form["variables"]["tweetId"] = tweet_id
         form["variables"]["count"] = batch_count
 
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
