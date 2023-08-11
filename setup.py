@@ -45,6 +45,7 @@ setup_args = {
         'requests>=2.31.0',
         'selenium>=4.8.3',
         'webdriver_manager~=3.8.5',
+        'brotli~=1.0.9'
     ],
     'zip_safe': False
 }
