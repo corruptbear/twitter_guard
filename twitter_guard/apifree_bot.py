@@ -2060,6 +2060,9 @@ class TwitterBot:
             response = r.json()
             response = TwitterJSON(response)
 
+            if response.__typename == "TweetTombstone":
+                return None
+
             this_id = int(response.id_str)
 
             user = response.user
