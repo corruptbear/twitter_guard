@@ -83,6 +83,7 @@ def display_session_cookies(s):
     for x in s.cookies:
         logger.debug(f"{x}")
 
+
 def make_cookie_string(session_cookies):
     cookie_strings = []
 
@@ -95,16 +96,18 @@ def make_cookie_string(session_cookies):
     cookies_string_with_separator = "; ".join(cookie_strings)
     return cookies_string_with_separator
 
-def set_cookies_from_headers(headers_list, session = None):
-    #headers_list: from getheaders()
-    cookies = {x[1].split("=")[0]:"=".join(x[1].split("=")[1:]).split(";")[0] for x in headers_list if x[0]=="set-cookie"}
+
+def set_cookies_from_headers(headers_list, session=None):
+    # headers_list: from getheaders()
+    cookies = {x[1].split("=")[0]: "=".join(x[1].split("=")[1:]).split(";")[0] for x in headers_list if x[0] == "set-cookie"}
     for key in cookies:
         session.cookies.set(key, cookies[key])
 
-def urllib_post(url, headers = None, payload = None, session = None):
-    #add cookie string
+
+def urllib_post(url, headers=None, payload=None, session=None):
+    # add cookie string
     cookie_string = make_cookie_string(session.cookies)
-    headers["Cookie"]=cookie_string
+    headers["Cookie"] = cookie_string
 
     req = Request(url, headers=headers, method="POST", data=json.dumps(payload).encode("utf-8"))
     with urlopen(req, timeout=10) as response:
@@ -112,7 +115,7 @@ def urllib_post(url, headers = None, payload = None, session = None):
         status_code = response.status
         content = response.read()
         headers_list = response.getheaders()
-        set_cookies_from_headers(headers_list, session = session)
+        set_cookies_from_headers(headers_list, session=session)
 
         # Create a requests Response object
         r = requests.Response()
@@ -122,6 +125,7 @@ def urllib_post(url, headers = None, payload = None, session = None):
         r.headers = headers
         r._content = content
         return r
+
 
 def genct0():
     """
@@ -160,35 +164,40 @@ def oracle(user, filtering_rule):
 
 class TwitterJSON:
     def __new__(cls, arg):
-        if isinstance(arg, abc.Mapping):
-            return super().__new__(cls)
+        if isinstance(arg, abc.Mapping) or arg is None:
+            return super().__new__(cls)  # object.__new__(TwitterJSON)
         elif isinstance(arg, abc.MutableSequence):
             return [cls(item) for item in arg]
         else:
             return arg
 
     def __init__(self, mapping):
+        if mapping is None:
+            self.__data = None
+            return
         self.__data = {}
         for key, value in mapping.items():
             if keyword.iskeyword(key):
                 key += "_"
             self.__data[key] = value
 
-    def __getattr__(self, name):
+    def __getattr__(self, name):  # only called when the named attribute could not be found
         try:
             # convert the mangled __typename back to original value
             if "__typename" in name:
                 name = "__typename"
-            # no ambiguity
+            # no ambiguity: when we refer to items, we refer to a field, not the items() method
             if name != "items":
                 return getattr(self.__data, name)
             # we are only in the data, not the built-in method
             else:
                 raise AttributeError
         except AttributeError:
+            if self.__data is None:
+                return TwitterJSON(None)  # calling dot on an instance of None data returns another instance of None data
             if name in self.__data:
                 return TwitterJSON(self.__data[name])
-            return None
+            return TwitterJSON(None)
 
     # still supports subscription, just in case
     def __getitem__(self, name):
@@ -201,6 +210,8 @@ class TwitterJSON:
         return str(self.__data)
 
     def __len__(self):
+        if self.__data is None:
+            return 0
         return len(self.__data)
 
     def __contains__(self, key):
@@ -211,6 +222,15 @@ class TwitterJSON:
 
     def __iter__(self):
         return (key for key in self.__data)
+
+    def __eq__(self, other):
+        # vs None: return True for TwitterJSON(None)
+        if other is None and self.__data is None:
+            return True
+        # vs other TwitterJSON object
+        if isinstance(other, TwitterJSON):
+            return self.__data == other._TwitterJSON__data
+        return False
 
     def values(self):
         return (TwitterJSON(x) for x in self.__data.values())
@@ -288,13 +308,13 @@ class TwitterLoginBot:
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
             "Accept": "*/*",
             "Accept-Language": "en-US,en;q=0.9",
-            #"Accept-Encoding": "gzip, deflate, br",
+            # "Accept-Encoding": "gzip, deflate, br",
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
             "Referer": "https://twitter.com/",
             # "x-twitter-polling": "true",
-            #"x-twitter-auth-type": "OAuth2Session",
+            # "x-twitter-auth-type": "OAuth2Session",
             "x-twitter-client-language": "en",
             "x-twitter-active-user": "yes",
             "Origin": "https://twitter.com",
@@ -304,7 +324,7 @@ class TwitterLoginBot:
             "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
             "Connection": "keep-alive",
             "TE": "trailers",
-            #"X-Client-Uuid": "d1ea869c-5118-4a8b-8e21-2c7620f0e84d",
+            # "X-Client-Uuid": "d1ea869c-5118-4a8b-8e21-2c7620f0e84d",
         }
 
         self._session = requests.Session()
@@ -559,12 +579,12 @@ class TwitterLoginBot:
             self._customize_headers("get_sso")
             self.get_sso_payload["flow_token"] = self.login_flow_token
 
-            #r = self._session.post(
+            # r = self._session.post(
             #    "https://api.twitter.com/1.1/onboarding/task.json",
             #    headers=self._headers,
             #    data=json.dumps(self.get_sso_payload),
-            #)
-            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers = self._headers, payload = self.get_sso_payload, session = self._session)
+            # )
+            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers=self._headers, payload=self.get_sso_payload, session=self._session)
 
         else:
             payload = self.tasks[task]["payload"]
@@ -573,12 +593,12 @@ class TwitterLoginBot:
             if task == 8:
                 payload["subtask_inputs"][0]["enter_text"]["text"] = input(f"Enter Twitter Confirmation Code sent to {self._email}")
 
-            #r = self._session.post(
+            # r = self._session.post(
             #    "https://api.twitter.com/1.1/onboarding/task.json",
             #    headers=self._headers,
             #    data=json.dumps(payload),
-            #)
-            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers = self._headers, payload = payload, session = self._session)
+            # )
+            r = urllib_post("https://api.twitter.com/1.1/onboarding/task.json", headers=self._headers, payload=payload, session=self._session)
 
         self._prepare_next_login_task(r)
 
@@ -608,13 +628,13 @@ class TwitterLoginBot:
         # set the headers accordingly
         self._headers["x-csrf-token"] = self._session.cookies.get("ct0")
 
-        #r = self._session.post(
+        # r = self._session.post(
         #    "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login",
         #    headers=self._headers,
         #    params=self.get_token_payload,
-        #)
+        # )
         url = "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login"
-        r = urllib_post(url, headers = self._headers, payload = self.get_token_payload, session = self._session)
+        r = urllib_post(url, headers=self._headers, payload=self.get_token_payload, session=self._session)
 
         self._prepare_next_login_task(r)
         # att is set by the response cookie
@@ -1239,9 +1259,7 @@ class TwitterBot:
             for entry_id in interacting_users:
                 # print(interacting_users[entry_id])
                 event_time = (
-                    datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"]) // 1000)
-                    .replace(tzinfo=timezone.utc)
-                    .strftime("%Y-%m-%d %H:%M:%S")
+                    datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"]) // 1000).replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 )
                 user_dict = dataclasses.asdict(interacting_users[entry_id]["user"])
                 if event_time not in backup_events:
@@ -1263,7 +1281,7 @@ class TwitterBot:
                 if content.cursorType == "Bottom":
                     return content.value
             elif content.entryType == "TimelineTimelineItem":
-                if content.itemContent and (
+                if (
                     content.itemContent.cursorType == "Bottom"
                     or content.itemContent.cursorType == "ShowMoreThreads"
                     or content.itemContent.cursorType == "ShowMoreThreadsPrompt"
@@ -1277,7 +1295,7 @@ class TwitterBot:
         """
         # non-normal result could happen when the result is fetched from the user related endpoints
         # impossible when the result is embedded in other returned entries
-        if result is None:
+        if result == None:  # cannot use is None here because None is wrapped in TwitterJSON
             return "does_not_exist", None
 
         user = result.legacy
@@ -1387,13 +1405,13 @@ class TwitterBot:
         if result.legacy.extended_entities:
             for m in result.legacy.extended_entities.media:
                 media_type = m.type
-                if media_type  == "photo":
+                if media_type == "photo":
                     url = m.media_url_https
-                elif media_type  == "video" or media_type == "animated_gif":
+                elif media_type == "video" or media_type == "animated_gif":
                     variants = m.video_info.variants
                     highest_bitrate_variant_url = max(variants, key=lambda x: x.get("bitrate", 0))["url"]
                     url = highest_bitrate_variant_url.split("?")[0].strip()
-                media.append({"type":media_type, "url":url})
+                media.append({"type": media_type, "url": url})
 
         tweet = Tweet(
             result.rest_id,
@@ -1415,7 +1433,7 @@ class TwitterBot:
             quote_count=result.legacy.quote_count,
             bookmark_count=result.legacy.bookmark_count,
             hashtags=[x["text"] for x in result.legacy.entities.hashtags],
-            media = media,
+            media=media,
             user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
             user=user,
         )
@@ -1446,23 +1464,21 @@ class TwitterBot:
                 for i in content.items:
                     itemContent = i.item.itemContent
                     if itemContent.__typename == "TimelineTweet":
-                        result = itemContent.tweet_results.result
-                        if result:
-                            if result.__typename == "Tweet":
-                                # when user_id is not provided, return everything; otherwise only return tweets from user_id
-                                if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
-                                    yield from TwitterBot._tweet_from_result(result)
-                            if result.__typename == "TweetWithVisibilityResults":
-                                yield from TwitterBot._tweet_from_result(result.tweet)
+                        result = itemContent.tweet_results.result  # could be None
+                        if result.__typename == "Tweet":
+                            # when user_id is not provided, return everything; otherwise only return tweets from user_id
+                            if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
+                                yield from TwitterBot._tweet_from_result(result)
+                        elif result.__typename == "TweetWithVisibilityResults":
+                            yield from TwitterBot._tweet_from_result(result.tweet)
             elif content.entryType == "TimelineTimelineItem":
                 itemContent = content.itemContent
                 if itemContent.__typename == "TimelineTweet":
-                    result = itemContent.tweet_results.result
-                    if result:
-                        if result.__typename == "Tweet":
-                            yield from TwitterBot._tweet_from_result(result)
-                        if result.__typename == "TweetWithVisibilityResults":
-                            yield from TwitterBot._tweet_from_result(result.tweet)
+                    result = itemContent.tweet_results.result  # could be None
+                    if result.__typename == "Tweet":
+                        yield from TwitterBot._tweet_from_result(result)
+                    elif result.__typename == "TweetWithVisibilityResults":
+                        yield from TwitterBot._tweet_from_result(result.tweet)
                 elif itemContent.__typename == "TimelineTwitterList":
                     twitter_list = itemContent.list
                     yield TwitterBot._list_from_list(twitter_list)
@@ -1503,11 +1519,10 @@ class TwitterBot:
                 instructions = data.threaded_conversation_with_injections_v2.instructions
             elif data.search_by_raw_query:
                 instructions = data.search_by_raw_query.search_timeline.timeline.instructions
-            elif data.viewer:
-                if data.viewer.timeline:
-                    instructions = data.viewer.timeline.timeline.instructions  # blocklist
-                elif data.viewer.muting_timeline:
-                    instructions = data.viewer.muting_timeline.timeline.instructions  # mutelist
+            elif data.viewer.timeline:
+                instructions = data.viewer.timeline.timeline.instructions  # blocklist
+            elif data.viewer.muting_timeline:
+                instructions = data.viewer.muting_timeline.timeline.instructions  # mutelist
             else:
                 result = data.user.result
                 if result.timeline_v2:
@@ -1531,7 +1546,7 @@ class TwitterBot:
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)
             # could happen when nagivating tweet threads
-            if bottom_cursor is None:
+            if bottom_cursor == None:  # cannot use is None here because None is wrapped in TwitterJSON
                 break
             form["variables"]["cursor"] = bottom_cursor
 
@@ -2050,10 +2065,10 @@ class TwitterBot:
 
         # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=self._json_headers()):
-            if entries is None:
+            if entries == None:  # cannot use is None here because None is wrapped in TwitterJSON
                 return None
             else:
-                yield from TwitterBot._text_from_entries(entries)
+                yield from TwitterBot._text_from_entries(entries)  # currently ignores post from advertiser even if it's the main post
 
     @staticmethod
     def cdn_tweet_detail(tweet_id):
@@ -2111,13 +2126,13 @@ class TwitterBot:
             if response.mediaDetails:
                 for m in response.mediaDetails:
                     media_type = m.type
-                    if media_type  == "photo":
+                    if media_type == "photo":
                         url = m.media_url_https
-                    elif media_type  == "video" or media_type == "animated_gif":
+                    elif media_type == "video" or media_type == "animated_gif":
                         variants = m.video_info.variants
                         highest_bitrate_variant_url = max(variants, key=lambda x: x.get("bitrate", 0))["url"]
                         url = highest_bitrate_variant_url.split("?")[0].strip()
-                    media.append({"type":media_type, "url":url})
+                    media.append({"type": media_type, "url": url})
 
             tweet = Tweet(
                 int(tweet_id),
@@ -2126,7 +2141,7 @@ class TwitterBot:
                 text=response.text,
                 lang=response.lang,
                 hashtags=[x["text"] for x in response.entities.hashtags],
-                media = media,
+                media=media,
                 user_mentions=[TwitterUserProfile(int(x.id_str), x.screen_name) for x in response.entities.user_mentions],
                 **otherinfo,
             )
@@ -2173,7 +2188,7 @@ class TwitterBot:
         """
         Returns the numerical id of the current account
         """
-        current_id = unquote(self._session.cookies['twid']).replace('"', '')
+        current_id = unquote(self._session.cookies["twid"]).replace('"', "")
         current_id = int(current_id.split("=")[1])
         return current_id
 
@@ -2189,7 +2204,7 @@ class TwitterBot:
                     "send_twitter_emails": False,
                 },
                 "userId": self.get_current_id(),
-            }
+            },
         }
         headers = self._json_headers()
         r = self._session.post(url, headers=headers, data=json.dumps(form))
