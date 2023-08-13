@@ -247,6 +247,7 @@ class Tweet:
     text: str = dataclasses.field(default=None)
     lang: str = dataclasses.field(default=None)
     hashtags: list = dataclasses.field(default=None)
+    media: list = dataclasses.field(default=None)
     user_mentions: list = dataclasses.field(default=None)
     quoted_tweet_id: int = dataclasses.field(default=None)
     quoted_user_id: int = dataclasses.field(default=None)
@@ -1382,6 +1383,18 @@ class TwitterBot:
             except:
                 logger.debug(f"retweet: {result}")
 
+        media = []
+        if result.legacy.extended_entities:
+            for m in result.legacy.extended_entities.media:
+                media_type = m.type
+                if media_type  == "photo":
+                    url = m.media_url_https
+                elif media_type  == "video" or media_type == "animated_gif":
+                    variants = m.video_info.variants
+                    highest_bitrate_variant_url = max(variants, key=lambda x: x.get("bitrate", 0))["url"]
+                    url = highest_bitrate_variant_url.split("?")[0].strip()
+                media.append({"type":media_type, "url":url})
+
         tweet = Tweet(
             result.rest_id,
             tweet_type=tweet_type,
@@ -1402,6 +1415,7 @@ class TwitterBot:
             quote_count=result.legacy.quote_count,
             bookmark_count=result.legacy.bookmark_count,
             hashtags=[x["text"] for x in result.legacy.entities.hashtags],
+            media = media,
             user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
             user=user,
         )
@@ -1740,6 +1754,7 @@ class TwitterBot:
             if r.status_code != 201:
                 return None
             else:
+                logger.info(f"{path} is successfully uploaded! media id: {media_id}")
                 return media_id
         except:
             return None
@@ -1792,7 +1807,9 @@ class TwitterBot:
         response = TwitterJSON(response)
 
         if r.status_code == 200:
-            return response.data.create_tweet.tweet_results.result.rest_id
+            tweet_id = response.data.create_tweet.tweet_results.result.rest_id
+            logger.info(f"tweet {tweet_id} is successfully created")
+            return tweet_id
 
     def reply_to_tweet(self, tweet_id, text, image_paths=None):
         logger.debug("reply")
@@ -1811,7 +1828,9 @@ class TwitterBot:
         response = TwitterJSON(response)
 
         if r.status_code == 200:
-            return response.data.create_tweet.tweet_results.result.rest_id
+            reply_id = response.data.create_tweet.tweet_results.result.rest_id
+            logger.info(f"tweet {reply_id} in reply to {tweet_id} is successfully created")
+            return reply_id
 
     def create_thread(self, tweets, conversation_control=None, min_interval=10, max_interval=30):
         # tweets: a list of dicts
@@ -2088,6 +2107,17 @@ class TwitterBot:
             else:
                 otherinfo["retweeted_tweet_id"] = this_id
                 otherinfo["retweeted_user_id"] = int(user.id_str)
+            media = []
+            if response.mediaDetails:
+                for m in response.mediaDetails:
+                    media_type = m.type
+                    if media_type  == "photo":
+                        url = m.media_url_https
+                    elif media_type  == "video" or media_type == "animated_gif":
+                        variants = m.video_info.variants
+                        highest_bitrate_variant_url = max(variants, key=lambda x: x.get("bitrate", 0))["url"]
+                        url = highest_bitrate_variant_url.split("?")[0].strip()
+                    media.append({"type":media_type, "url":url})
 
             tweet = Tweet(
                 int(tweet_id),
@@ -2096,6 +2126,7 @@ class TwitterBot:
                 text=response.text,
                 lang=response.lang,
                 hashtags=[x["text"] for x in response.entities.hashtags],
+                media = media,
                 user_mentions=[TwitterUserProfile(int(x.id_str), x.screen_name) for x in response.entities.user_mentions],
                 **otherinfo,
             )
