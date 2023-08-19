@@ -37,6 +37,13 @@ def load_yaml(filepath):
         traceback.print_exc()
         return dict()
 
+def snowflake_id_to_unix_timestamp(tweet_id):
+    """
+    Convert twitter snowflake id to **********.*** unix timestamp
+    """
+    offset = 1288834974657
+    tstamp = (tweet_id >> 22) + offset
+    return tstamp/1000
 
 # the post timestamp and user.created timestamp have inconsistent format
 def sns_timestamp_to_utc_datetime(timestamp):

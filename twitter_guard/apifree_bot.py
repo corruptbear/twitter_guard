@@ -2075,6 +2075,7 @@ class TwitterBot:
         logger.debug("get tweet brief from twitter cdn")
         url = "https://cdn.syndication.twimg.com/tweet-result"
         form = {"id": tweet_id, "lang": "en"}
+        form["token"] = ""
         headers = {
             "Accept": "*/*",
             "Origin": "https://platform.twitter.com",
@@ -2093,6 +2094,7 @@ class TwitterBot:
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
+            #print(tweet_id,r.text)
 
             if response.__typename == "TweetTombstone":
                 return None
