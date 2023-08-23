@@ -2200,7 +2200,7 @@ class TwitterBot:
         """
         url = "https://twitter.com/i/api/graphql/2qKKYFQift8p5-J1k6kqxQ/WriteEmailNotificationSettings"
         form = {
-            "queryId": url.split("/")[-2].strip(),
+            "queryId": queryID_from_url(url),
             "variables": {
                 "settings": {
                     "send_twitter_emails": False,

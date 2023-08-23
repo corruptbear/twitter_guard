@@ -45,6 +45,9 @@ def snowflake_id_to_unix_timestamp(tweet_id):
     tstamp = (tweet_id >> 22) + offset
     return tstamp/1000
 
+def queryID_from_url(url):
+    return url.split("/")[-2].strip()
+
 # the post timestamp and user.created timestamp have inconsistent format
 def sns_timestamp_to_utc_datetime(timestamp):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc)
