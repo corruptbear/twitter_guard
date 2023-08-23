@@ -1869,6 +1869,84 @@ class TwitterBot:
             sleep(random.randint(min_interval, max_interval))
         return new_tweets_ids
 
+    def create_scheduled_tweet(self, text, image_paths=None, execute_at=None, in_reply_to=None, quote_from=None):
+        """
+        Report all users from tweet search result in the same way.
+
+        Parameters:
+        text (str): the text content of the tweet
+        image_paths (list): a list of full paths of local images
+        execute_at (int): future UTC time in utc timestamp
+        in_reply_to (int | str): if created as a reply, the tweet_id of the tweet being replied to
+        quote_from (int): if created as quote, the tweet_id of the tweet being quoted
+        """
+        logger.debug("scheduled tweet")
+        headers = self._tweet_creation_headers()
+        url = "https://twitter.com/i/api/graphql/LCVzRQGxOaGnOnYH01NQXg/CreateScheduledTweet"
+        media_ids = self._upload_images(image_paths)
+
+        form = {
+          "variables": {
+            "post_tweet_request": {
+              "auto_populate_reply_metadata": in_reply_to != None,
+              "status": text,
+              "exclude_reply_user_ids": [],
+              "media_ids": [str(x) for x in media_ids],
+            },
+            "execute_at": execute_at,
+          },
+          "queryId": queryID_from_url(url),
+        }
+
+        if in_reply_to!=None:
+            form["variables"]["post_tweet_request"]["in_reply_to_status_id"] = str(in_reply_to)
+        if quote_from!=None:
+            quoted_tweet = TwitterBot.tweet_by_rest_id(quote_from)
+            quoted_screen_name = quoted_tweet.user.screen_name
+            form["variables"]["post_tweet_request"]["attachment_url"] = f"https://twitter.com/{quoted_screen_name}/status/{quote_from}"
+
+        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        if execute_at - current_timestamp < 60:
+            #play safe so that it's at least the next minute
+            execute_at = current_timestamp + 60
+        form["variables"]["execute_at"] = execute_at
+
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
+        logger.debug(f"{r.status_code}, {r.text}")
+
+        response = r.json()
+        response = TwitterJSON(response)
+
+        if r.status_code == 200:
+            tweet_id = response.data.tweet.rest_id
+            if tweet_id!=None:
+                logger.info(f"tweet {tweet_id} is successfully scheduled at {execute_at}")
+                return tweet_id
+
+    def delete_scheduled_tweet(self, tweet_id):
+        logger.debug("delete scheduled tweet")
+        headers = self._json_headers()
+        headers["Referer"] = "https://twitter.com/compose/tweet/schedule"
+        url = "https://twitter.com/i/api/graphql/CTOVqej0JBXAZSwkp1US0g/DeleteScheduledTweet"
+        form = {
+          "variables": {
+            "scheduled_tweet_id": str(tweet_id),
+          },
+          "queryId": queryID_from_url(url),
+        }
+
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
+        logger.debug(f"{r.status_code}, {r.text}")
+
+        response = r.json()
+        response = TwitterJSON(response)
+
+        if r.status_code == 200:
+            if response.data.scheduledtweet_delete == "Done":
+                logger.info(f"scheduled tweet {tweet_id} is successfully deleted")
+                return True
+        return False
+
     @staticmethod
     def tmp_session_headers():
         if TwitterBot.tmp_count == 0:
