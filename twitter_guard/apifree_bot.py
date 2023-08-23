@@ -1437,6 +1437,12 @@ class TwitterBot:
             user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
             user=user,
         )
+        return tweet
+
+    @staticmethod
+    def _yield_tweet_from_result(result):
+        #a wrapper to facilitate the use of yield from so that non-yielded ones are ignored automatically without having to check None
+        tweet = TwitterBot._tweet_from_result(result)
         # TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
         if not (("advertiser-interface" in tweet.source) or ("Twitter for Advertisers" in tweet.source)):
             yield tweet
@@ -1468,17 +1474,17 @@ class TwitterBot:
                         if result.__typename == "Tweet":
                             # when user_id is not provided, return everything; otherwise only return tweets from user_id
                             if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
-                                yield from TwitterBot._tweet_from_result(result)
+                                yield from TwitterBot._yield_tweet_from_result(result)
                         elif result.__typename == "TweetWithVisibilityResults":
-                            yield from TwitterBot._tweet_from_result(result.tweet)
+                            yield from TwitterBot._yield_tweet_from_result(result.tweet)
             elif content.entryType == "TimelineTimelineItem":
                 itemContent = content.itemContent
                 if itemContent.__typename == "TimelineTweet":
                     result = itemContent.tweet_results.result  # could be None
                     if result.__typename == "Tweet":
-                        yield from TwitterBot._tweet_from_result(result)
+                        yield from TwitterBot._yield_tweet_from_result(result)
                     elif result.__typename == "TweetWithVisibilityResults":
-                        yield from TwitterBot._tweet_from_result(result.tweet)
+                        yield from TwitterBot._yield_tweet_from_result(result.tweet)
                 elif itemContent.__typename == "TimelineTwitterList":
                     twitter_list = itemContent.list
                     yield TwitterBot._list_from_list(twitter_list)
@@ -2217,6 +2223,26 @@ class TwitterBot:
         response = TwitterJSON(response)
         if response.data.user_notifications_email_notifications_put == "Done":
             logger.info("{tweet_id} email notification change success!")
+
+    @staticmethod
+    def tweet_by_rest_id(tweet_id):
+        url = "https://twitter.com/i/api/graphql/0hWvDhmW8YQ-S_ib3azIrw/TweetResultByRestId"
+        form = {
+            "variables":{"tweetId":str(tweet_id),"withCommunity":False,"includePromotedContent":False,"withVoice":False},
+            "features":TwitterBot.standard_graphql_features
+        }
+        form["features"]["responsive_web_media_download_video_enabled"] = False
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        if r.status_code == 200:
+            response = r.json()
+            response = TwitterJSON(response)
+            return TwitterBot._tweet_from_result(response.data.tweetResult.result)
+        else:
+            logger.debug(f"{r.status_code}, {r.text}")
 
     # @staticmethod
     # def user_by_screen_name(screen_name):
