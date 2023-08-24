@@ -1125,8 +1125,8 @@ class TwitterBot:
                 notification_id_to_user_id[notification.id] = []
                 for e in notification.message.entities:
                     # there might be notifications that have non-empty entities field but do not contain any user
-                    if e.ref is not None:
-                        if e.ref.user is not None:
+                    if e.ref:
+                        if e.ref.user:
                             entry_user_id = int(e.ref.user.id)
                             # add the users appearing in notifications (do not include replies)
                             notification_id_to_user_id[notification.id].append(entry_user_id)
@@ -1268,7 +1268,7 @@ class TwitterBot:
         """
         # non-normal result could happen when the result is fetched from the user related endpoints
         # impossible when the result is embedded in other returned entries
-        if result == None:  # cannot use is None here because None is wrapped in TwitterJSON
+        if not result:  # cannot use is None here because None is wrapped in TwitterJSON
             return "does_not_exist", None
 
         user = result.legacy
@@ -1316,7 +1316,7 @@ class TwitterBot:
         # a retweet could be anything, but it's a retweet first.
         if "RT @" in tweet.full_text:
             return "retweeted"
-        if tweet.in_reply_to_status_id_str is not None:
+        if tweet.in_reply_to_status_id_str:
             if tweet.is_quote_status:
                 return "reply_by_quote"
             return "reply"
@@ -1340,7 +1340,7 @@ class TwitterBot:
 
     @staticmethod
     def _tweet_from_result(result):
-        if result == None:
+        if not result:
             #to handle the deleted tweet case for tweet_by_rest_id
             return
         tweet_type = TwitterBot._tweet_type(result.legacy)
@@ -1358,7 +1358,7 @@ class TwitterBot:
             try:
                 quoted_tweet_id = int(result.legacy.quoted_status_id_str)
                 # could be tombstone
-                if result.quoted_status_result.result.legacy is not None:
+                if result.quoted_status_result.result.legacy:
                     quoted_user_id = int(result.quoted_status_result.result.legacy.user_id_str)
             except:
                 logger.debug(f"quote: {result}")
@@ -1528,7 +1528,7 @@ class TwitterBot:
 
             bottom_cursor = TwitterBot._cursor_from_entries(entries)
             # could happen when nagivating tweet threads
-            if bottom_cursor == None:  # cannot use is None here because None is wrapped in TwitterJSON
+            if not bottom_cursor:
                 break
             form["variables"]["cursor"] = bottom_cursor
 
@@ -1861,7 +1861,7 @@ class TwitterBot:
         form = {
           "variables": {
             "post_tweet_request": {
-              "auto_populate_reply_metadata": in_reply_to != None,
+              "auto_populate_reply_metadata": in_reply_to is not None,
               "status": text,
               "exclude_reply_user_ids": [],
               "media_ids": [str(x) for x in media_ids],
@@ -2122,7 +2122,7 @@ class TwitterBot:
 
         # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=self._json_headers()):
-            if entries == None:  # cannot use is None here because None is wrapped in TwitterJSON
+            if not entries:  # cannot use is None here because None is wrapped in TwitterJSON
                 return None
             else:
                 yield from TwitterBot._text_from_entries(entries)  # currently ignores post from advertiser even if it's the main post
