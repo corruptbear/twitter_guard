@@ -210,6 +210,9 @@ class TwitterJSON:
         return str(self.__data)
 
     def __len__(self):
+        """
+        if __bool__ is not implemented, Python tries to invoke x.__len__(), and if that returns  zero, bool returns False.
+        """
         if self.__data is None:
             return 0
         return len(self.__data)
@@ -993,7 +996,7 @@ class TwitterBot:
     def block_user(self, user_id):
         user_id = self.numerical_id(user_id)
 
-        url = "https://api.twitter.com/1.1/blocks/create.json",
+        url = "https://api.twitter.com/1.1/blocks/create.json"
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
         if r.status_code == 200:
