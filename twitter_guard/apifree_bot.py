@@ -7,7 +7,8 @@ from urllib.parse import urlencode, quote, unquote
 from urllib.request import urlopen, Request
 import http.cookiejar
 
-import dataclasses
+from dataclasses import dataclass, field, asdict as dtc_asdict
+from functools import cache
 
 from datetime import datetime, timezone
 from dateutil import tz
@@ -239,19 +240,19 @@ class TwitterJSON:
         return (TwitterJSON(x) for x in self.__data.values())
 
 
-@dataclasses.dataclass
+@dataclass
 class TwitterUserProfile:
     user_id: int
     screen_name: str
-    created_at: str = dataclasses.field(default=None)
-    following_count: int = dataclasses.field(default=None)
-    followers_count: int = dataclasses.field(default=None)
-    tweet_count: int = dataclasses.field(default=None)
-    media_count: int = dataclasses.field(default=None)
-    favourites_count: int = dataclasses.field(default=None)
-    days_since_registration: int = dataclasses.field(init=False, default=None)
-    display_name: str = dataclasses.field(default=None, metadata={"keyword_only": True})
-    blocked: bool = dataclasses.field(default=None)
+    created_at: str = field(default=None)
+    following_count: int = field(default=None)
+    followers_count: int = field(default=None)
+    tweet_count: int = field(default=None)
+    media_count: int = field(default=None)
+    favourites_count: int = field(default=None)
+    days_since_registration: int = field(init=False, default=None)
+    display_name: str = field(default=None, metadata={"keyword_only": True})
+    blocked: bool = field(default=None)
 
     def __post_init__(self):
         if self.created_at is not None:
@@ -261,42 +262,42 @@ class TwitterUserProfile:
             self.days_since_registration = time_diff.days
 
 
-@dataclasses.dataclass
+@dataclass
 class Tweet:
     tweet_id: int
-    tweet_type: str = dataclasses.field(default=None)
-    created_at: str = dataclasses.field(default=None)
-    source: str = dataclasses.field(default=None)
-    text: str = dataclasses.field(default=None)
-    lang: str = dataclasses.field(default=None)
-    hashtags: list = dataclasses.field(default=None)
-    media: list = dataclasses.field(default=None)
-    user_mentions: list = dataclasses.field(default=None)
-    quoted_tweet_id: int = dataclasses.field(default=None)
-    quoted_user_id: int = dataclasses.field(default=None)
-    replied_tweet_id: int = dataclasses.field(default=None)
-    replied_user_id: int = dataclasses.field(default=None)
-    retweeted_tweet_id: int = dataclasses.field(default=None)
-    retweeted_user_id: int = dataclasses.field(default=None)
+    tweet_type: str = field(default=None)
+    created_at: str = field(default=None)
+    source: str = field(default=None)
+    text: str = field(default=None)
+    lang: str = field(default=None)
+    hashtags: list = field(default=None)
+    media: list = field(default=None, repr=False)
+    user_mentions: list = field(default=None)
+    quoted_tweet_id: int = field(default=None, repr=False)
+    quoted_user_id: int = field(default=None, repr=False)
+    replied_tweet_id: int = field(default=None, repr=False)
+    replied_user_id: int = field(default=None, repr=False)
+    retweeted_tweet_id: int = field(default=None, repr=False)
+    retweeted_user_id: int = field(default=None, repr=False)
 
-    view_count: int = dataclasses.field(default=None)
-    reply_count: int = dataclasses.field(default=None)
-    retweet_count: int = dataclasses.field(default=None)
-    favorite_count: int = dataclasses.field(default=None)
-    quote_count: int = dataclasses.field(default=None)
-    bookmark_count: int = dataclasses.field(default=None)
+    view_count: int = field(default=None)
+    reply_count: int = field(default=None)
+    retweet_count: int = field(default=None)
+    favorite_count: int = field(default=None)
+    quote_count: int = field(default=None)
+    bookmark_count: int = field(default=None)
 
-    user: TwitterUserProfile = dataclasses.field(default=None)
+    user: TwitterUserProfile = field(default=None)
 
 
-@dataclasses.dataclass
+@dataclass
 class TwitterList:
     list_id: int
-    name: str = dataclasses.field(default=None)
-    description: str = dataclasses.field(default=None)
-    member_count: int = dataclasses.field(default=None)
-    subscriber_count: int = dataclasses.field(default=None)
-    user: TwitterUserProfile = dataclasses.field(default=None)
+    name: str = field(default=None)
+    description: str = field(default=None)
+    member_count: int = field(default=None)
+    subscriber_count: int = field(default=None)
+    user: TwitterUserProfile = field(default=None)
 
 
 class SessionType:
@@ -1237,7 +1238,7 @@ class TwitterBot:
                 event_time = (
                     datetime.utcfromtimestamp(int(interacting_users[entry_id]["sort_index"]) // 1000).replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 )
-                user_dict = dataclasses.asdict(interacting_users[entry_id]["user"])
+                user_dict = dtc_asdict(interacting_users[entry_id]["user"])
                 if event_time not in backup_events:
                     backup_events[event_time] = []
                 backup_events[event_time].append(
@@ -2298,13 +2299,14 @@ class TwitterBot:
             #if the tweet has been deleted, response.data.tweetResult.result would be None and _tweet_from_result would return None
             return TwitterBot._tweet_from_result(response.data.tweetResult.result)
 
-    # @staticmethod
-    # def user_by_screen_name(screen_name):
-    def user_by_screen_name(self, screen_name):
+    @staticmethod
+    @cache
+    #def user_by_screen_name(self, screen_name):
+    def user_by_screen_name(screen_name):
         """
         Returns the account status and the user profile, given user's screen_name.
         """
-        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = "https://twitter.com/i/api/graphql/k26ASEiniqy4eXMdknTSoQ/UserByScreenName"
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -2313,8 +2315,8 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = False
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-        # r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
+        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -2323,13 +2325,14 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    # @staticmethod
-    # def user_by_id(user_id):
+    #@staticmethod
+    @cache
     def user_by_id(self, user_id):
+    #def user_by_id(user_id):
         """
         Returns the account status and the user profile, given user's id.
         """
-        # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
         url = "https://twitter.com/i/api/graphql/nI8WydSd-X-lQIVo6bdktQ/UserByRestId"
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
@@ -2338,7 +2341,7 @@ class TwitterBot:
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
 
-        # r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
         r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
         if r.status_code == 200:
@@ -2348,14 +2351,14 @@ class TwitterBot:
         else:
             logger.debug(f"{r.status_code}, {r.text}")
 
-    # @staticmethod
-    # def status_by_screen_name(screen_name):
-    def status_by_screen_name(self, screen_name):
+    @staticmethod
+    def status_by_screen_name(screen_name):
+    #def status_by_screen_name(self, screen_name):
         """
         Probe the status of an account, given user's screen_name.
         """
-        # values = TwitterBot.user_by_screen_name(screen_name)
-        values = self.user_by_screen_name(screen_name)
+        values = TwitterBot.user_by_screen_name(screen_name)
+        #values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return status
@@ -2372,14 +2375,14 @@ class TwitterBot:
             status, user_profile = values
             return status
 
-    # @staticmethod
-    # def id_from_screen_name(screen_name):
-    def id_from_screen_name(self, screen_name):
+    @staticmethod
+    def id_from_screen_name(screen_name):
+    #def id_from_screen_name(self, screen_name):
         """
         Convert user id to screen name
         """
-        # values = TwitterBot.user_by_screen_name(screen_name)
-        values = self.user_by_screen_name(screen_name)
+        values = TwitterBot.user_by_screen_name(screen_name)
+        #values = self.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return user_profile.user_id
