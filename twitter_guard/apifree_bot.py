@@ -3,7 +3,7 @@ import sys
 import traceback
 
 import requests
-from requests.adapters import HTTPAdapter, Retry
+
 from urllib.parse import urlencode, quote, unquote
 from urllib.request import urlopen, Request
 import http.cookiejar

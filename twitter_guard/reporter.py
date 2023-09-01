@@ -393,7 +393,7 @@ class ReportHandler:
 
         self._headers = headers
         self._session = session
-        self._async_session = aiohttp.ClientSession(cookies=session.cookies)
+        self._async_session = aiohttp.ClientSession(cookies=session.cookies, raise_for_status=True)#aiohttp.ClientSession(cookies=session.cookies)
         self.bot = bot
         self._headers["Content-Type"] = "application/json"
 
@@ -486,7 +486,8 @@ class ReportHandler:
             response = r.json()
             self.flow_token = response["flow_token"]
         except:
-            logger.error("{r.status_code}: get flow token failed")
+            logger.error(f"{r.status_code}: get flow token failed")
+            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -506,7 +507,8 @@ class ReportHandler:
                 f"{[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
             )
         except:
-            logger.error("{r.status_code}: handle intro failed")
+            logger.error(f"{r.status_code}: handle intro failed")
+            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -546,7 +548,8 @@ class ReportHandler:
             else:
                 logger.debug(f"{[s['subtask_id'] for s in response['subtasks']]}")
         except:
-            logger.error("{r.status_code}: submit choice form failed")
+            logger.error(f"{r.status_code}: submit choice form failed")
+            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -565,6 +568,7 @@ class ReportHandler:
             logger.info("clicked yes in validation!")
         except:
             logger.error(f"{r.status_code}: validation click failed")
+            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -584,6 +588,7 @@ class ReportHandler:
             logger.info("successfully submitted!")
         except:
             logger.error(f"{r.status_code}: submit failed")
+            logger.debug(f"{r.text}")
             logger.debug(f"{r.headers}")
             logger.debug(f"{review_submit_payload}")
 
@@ -604,6 +609,7 @@ class ReportHandler:
             logger.info("successfully completed!")
         except:
             logger.error(f"{r.status_code}: completion failed")
+            logger.debug(f"{r.text}")
         return r.status_code
 
     def _handle_target(self, target):
@@ -632,6 +638,7 @@ class ReportHandler:
             self.flow_token = response["flow_token"]
         except:
             logger.error(f"{r.status_code}: handle target failed")
+            logger.debug(f"{r.text}")
 
         return r.status_code
 
