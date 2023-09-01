@@ -3,6 +3,7 @@ import sys
 import traceback
 
 import requests
+from requests.adapters import HTTPAdapter, Retry
 from urllib.parse import urlencode, quote, unquote
 from urllib.request import urlopen, Request
 import http.cookiejar
@@ -53,13 +54,6 @@ def drop_accept_encoding_on_putheader(http_connection_putheader):
 # this will avoid python automatically add Accept-Encoding: identity
 HTTPConnection.putheader = drop_accept_encoding_on_putheader(HTTPConnection.putheader)
 
-# This is the 2.11 Requests cipher string, containing 3DES.
-CIPHERS = (
-    "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:"
-    "DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:"
-    "!eNULL:!MD5"
-)
-
 CIPHERS = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384"
 
 
@@ -78,6 +72,21 @@ class DESAdapter(HTTPAdapter):
         kwargs["ssl_context"] = context
         return super(DESAdapter, self).proxy_manager_for(*args, **kwargs)
 
+DEFAULT_TIMEOUT = 5 # seconds
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    def __init__(self, *args, **kwargs):
+        self.timeout = DEFAULT_TIMEOUT
+        if "timeout" in kwargs:
+            self.timeout = kwargs["timeout"]
+            del kwargs["timeout"]
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        timeout = kwargs.get("timeout")
+        if timeout is None:
+            kwargs["timeout"] = self.timeout
+        return super().send(request, **kwargs)
 
 def display_session_cookies(s):
     logger.info("print cookies")
@@ -835,6 +844,10 @@ class TwitterBot:
 
         # experimental
         self._session.mount("https://twitter.com", DESAdapter())
+        retries = Retry(total=5,
+                        backoff_factor=0.1,
+                        status_forcelist=[ 500, 502, 503, 504])
+        self._session.mount('https://', TimeoutHTTPAdapter(max_retries=retries))
 
         self._cookie_path = cookie_path
 
@@ -1536,8 +1549,8 @@ class TwitterBot:
                 break
             form["variables"]["cursor"] = bottom_cursor
 
-    @staticmethod
-    def get_user_lists(user_id):
+    #@staticmethod
+    def get_user_lists(self, user_id):
         """
         Get a user's lists.
         """
@@ -1545,12 +1558,15 @@ class TwitterBot:
 
         url = "https://twitter.com/i/api/graphql/rIxum3avpCu7APi7mxTNjw/CombinedLists"
         # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        headers = self._json_headers()
+
         form = copy.deepcopy(TwitterBot.combined_lists_form)
         form["variables"]["userId"] = str(user_id)
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
-        for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from TwitterBot._text_from_entries(entries, user_id=user_id)
 
     # @staticmethod
@@ -2399,11 +2415,12 @@ class TwitterBot:
             status, user_profile = values
             return user_profile.screen_name
 
-    def numerical_id(self, user_id):
+    @staticmethod
+    def numerical_id(user_id):
         try:
             int_user_id = int(user_id)
         except:
-            int_user_id = int(self.id_from_screen_name(user_id))
+            int_user_id = int(TwitterBot.id_from_screen_name(user_id))
 
         return int_user_id
 
