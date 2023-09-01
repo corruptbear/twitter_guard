@@ -298,6 +298,10 @@ class Tweet:
 
     user: TwitterUserProfile = field(default=None)
 
+    def __post_init__(self):
+        if self.view_count:
+            self.view_count = int(self.view_count)
+
 
 @dataclass
 class TwitterList:
@@ -1419,7 +1423,7 @@ class TwitterBot:
             source=result.source,
             text=result.legacy.full_text,
             lang=result.legacy.lang,
-            view_count=int(result.views.count),
+            view_count=result.views.count,
             favorite_count=result.legacy.favorite_count,
             reply_count=result.legacy.reply_count,
             retweet_count=result.legacy.retweet_count,
@@ -2294,6 +2298,27 @@ class TwitterBot:
         response = TwitterJSON(response)
         if response.data.user_notifications_email_notifications_put == "Done":
             logger.info("{tweet_id} email notification change success!")
+
+    def set_protected_status(self, protected = False):
+        url = "https://api.twitter.com/1.1/account/settings.json"
+        form = {
+            "include_mention_filter": True,
+            "include_nsfw_user_flag": True,
+            "include_nsfw_admin_flag": True,
+            "include_ranked_timeline": True,
+            "include_alt_text_compose": True,
+            "protected": protected,
+        }
+        headers = copy.deepcopy(self._headers)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        r = self._session.post(url, headers=headers, data=urlencode(form))
+        logger.debug(f"{r.status_code} {r.text}")
+        r.raise_for_status()
+
+        response = r.json()
+        response = TwitterJSON(response)
+        if response.protected == protected:
+            logger.info(f"successfully changed protected status to {protected}")
 
     @staticmethod
     def tweet_by_rest_id(tweet_id):
