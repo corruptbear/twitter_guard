@@ -1407,7 +1407,7 @@ class TwitterBot:
                 media.append({"type": media_type, "url": url})
 
         tweet = Tweet(
-            result.rest_id,
+            int(result.rest_id),
             tweet_type=tweet_type,
             quoted_tweet_id=quoted_tweet_id,
             quoted_user_id=quoted_user_id,
@@ -1419,7 +1419,7 @@ class TwitterBot:
             source=result.source,
             text=result.legacy.full_text,
             lang=result.legacy.lang,
-            view_count=result.views.count,
+            view_count=int(result.views.count),
             favorite_count=result.legacy.favorite_count,
             reply_count=result.legacy.reply_count,
             retweet_count=result.legacy.retweet_count,
@@ -1427,7 +1427,7 @@ class TwitterBot:
             bookmark_count=result.legacy.bookmark_count,
             hashtags=[x["text"] for x in result.legacy.entities.hashtags],
             media=media,
-            user_mentions=[TwitterUserProfile(x.id, x.screen_name) for x in result.legacy.entities.user_mentions],
+            user_mentions=[TwitterUserProfile(int(x.id_str), x.screen_name) for x in result.legacy.entities.user_mentions],
             user=user,
         )
         return tweet
