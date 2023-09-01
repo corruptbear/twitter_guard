@@ -26,6 +26,7 @@ import copy
 from .selenium_bot import SeleniumTwitterBot
 from .utils import *
 from .rule_parser import rule_eval
+from .session import CustomSession as Session
 
 # from .reporter import ReportHandler
 from time import sleep
@@ -34,8 +35,6 @@ from collections import abc
 import keyword
 
 from http.client import HTTPConnection
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 
 import logging
 
@@ -50,49 +49,13 @@ def drop_accept_encoding_on_putheader(http_connection_putheader):
 
     return wrapper
 
-
 # this will avoid python automatically add Accept-Encoding: identity
 HTTPConnection.putheader = drop_accept_encoding_on_putheader(HTTPConnection.putheader)
-
-CIPHERS = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384"
-
-
-class DESAdapter(HTTPAdapter):
-    """
-    A TransportAdapter that re-enables 3DES support in Requests.
-    """
-
-    def init_poolmanager(self, *args, **kwargs):
-        context = create_urllib3_context(ciphers=CIPHERS)
-        kwargs["ssl_context"] = context
-        return super(DESAdapter, self).init_poolmanager(*args, **kwargs)
-
-    def proxy_manager_for(self, *args, **kwargs):
-        context = create_urllib3_context(ciphers=CIPHERS)
-        kwargs["ssl_context"] = context
-        return super(DESAdapter, self).proxy_manager_for(*args, **kwargs)
-
-DEFAULT_TIMEOUT = 5 # seconds
-
-class TimeoutHTTPAdapter(HTTPAdapter):
-    def __init__(self, *args, **kwargs):
-        self.timeout = DEFAULT_TIMEOUT
-        if "timeout" in kwargs:
-            self.timeout = kwargs["timeout"]
-            del kwargs["timeout"]
-        super().__init__(*args, **kwargs)
-
-    def send(self, request, **kwargs):
-        timeout = kwargs.get("timeout")
-        if timeout is None:
-            kwargs["timeout"] = self.timeout
-        return super().send(request, **kwargs)
 
 def display_session_cookies(s):
     logger.info("print cookies")
     for x in s.cookies:
         logger.debug(f"{x}")
-
 
 def make_cookie_string(session_cookies):
     cookie_strings = []
@@ -344,7 +307,7 @@ class TwitterLoginBot:
             # "X-Client-Uuid": "d1ea869c-5118-4a8b-8e21-2c7620f0e84d",
         }
 
-        self._session = requests.Session()
+        self._session = Session()#requests.Session()
 
         self._cookie_path = cookie_path
 
@@ -844,14 +807,7 @@ class TwitterBot:
         """
         self._headers = copy.deepcopy(TwitterBot.default_headers)
 
-        self._session = requests.Session()
-
-        # experimental
-        self._session.mount("https://twitter.com", DESAdapter())
-        retries = Retry(total=5,
-                        backoff_factor=0.1,
-                        status_forcelist=[ 500, 502, 503, 504])
-        self._session.mount('https://', TimeoutHTTPAdapter(max_retries=retries))
+        self._session = Session()
 
         self._cookie_path = cookie_path
 
@@ -1947,15 +1903,14 @@ class TwitterBot:
     @staticmethod
     def tmp_session_headers():
         if TwitterBot.tmp_count == 0:
-            tmp_session = requests.Session()
-            tmp_session.mount("https://twitter.com", DESAdapter())
+            tmp_session = Session()
 
             tmp_headers = copy.deepcopy(TwitterBot.default_headers)
 
             del tmp_headers["x-csrf-token"]
             del tmp_headers["x-twitter-auth-type"]
 
-            r = tmp_session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=tmp_headers)
+            r = tmp_session.post( "https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=tmp_headers)
             if r.status_code == 200:
                 tmp_headers["x-guest-token"] = r.json()["guest_token"]
 
