@@ -597,10 +597,10 @@ class TwitterLoginBot:
         except:
             logger.debug("cannot find guest token from the webpage")
             r = self._session.post("https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=self._headers)
-            if r.status_code == 200:
-                self._headers["x-guest-token"] = r.json()["guest_token"]
-                self._session.cookies.set("gt", self._headers["x-guest-token"])
-                logger.debug("got guest token from the endpoint")
+
+            self._headers["x-guest-token"] = r.json()["guest_token"]
+            self._session.cookies.set("gt", self._headers["x-guest-token"])
+            logger.debug("got guest token from the endpoint")
 
         # the ct0 value is just a random 32-character string generated from random bytes at client side
         self._session.cookies.set("ct0", genct0())
@@ -932,10 +932,9 @@ class TwitterBot:
         url = "https://api.twitter.com/2/badge_count/badge_count.json"
         badge_form = TwitterBot.badge_form
         r = self._session.get(url, headers=self._headers, params=badge_form)
-        result = None
-        if r.status_code == 200:
-            result = r.json()
-        logger.debug(f"{r.status_code}, {r.text}")
+
+        result = r.json()
+
         return r.status_code, result
 
     def update_local_cursor(self, val):
@@ -973,14 +972,13 @@ class TwitterBot:
         url = "https://api.twitter.com/1.1/blocks/create.json"
         block_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=block_form)
-        if r.status_code == 200:
-            logger.info(f"block {user_id}: successfully sent block post!")
-            response = r.json()
+
+        logger.info(f"block {user_id}: successfully sent block post!")
+        response = r.json()
             # update the block list
-            if hasattr(self, "_block_list_path"):
-                self._block_list[user_id] = response["screen_name"]
-                save_yaml(self._block_list, self._block_list_path, "w")
-        logger.debug(f"{r.status_code}, {r.text}")
+        if hasattr(self, "_block_list_path"):
+            self._block_list[user_id] = response["screen_name"]
+            save_yaml(self._block_list, self._block_list_path, "w")
 
     def unblock_user(self, user_id):
         user_id = self.numerical_id(user_id)
@@ -988,9 +986,8 @@ class TwitterBot:
         url = "https://api.twitter.com/1.1/blocks/destroy.json"
         unblock_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unblock_form)
-        if r.status_code == 200:
-            logger.info(f"unbock {user_id}: successfully sent unblock post!")
-        logger.debug(f"{r.status_code}, {r.text}")
+
+        logger.info(f"unbock {user_id}: successfully sent unblock post!")
 
     def mute_user(self, user_id):
         user_id = self.numerical_id(user_id)
@@ -998,9 +995,8 @@ class TwitterBot:
         url = "https://api.twitter.com/1.1/mutes/users/create.json"
         mute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=mute_form)
-        if r.status_code == 200:
-            logger.info(f"mute {user_id}: successfully sent mute post!")
-        logger.debug(f"{r.status_code}, {r.text}")
+
+        logger.info(f"mute {user_id}: successfully sent mute post!")
 
     def unmute_user(self, user_id):
         user_id = self.numerical_id(user_id)
@@ -1008,9 +1004,8 @@ class TwitterBot:
         url = "https://api.twitter.com/1.1/mutes/users/destroy.json"
         unmute_form = {"user_id": str(user_id)}
         r = self._session.post(url, headers=self._headers, params=unmute_form)
-        if r.status_code == 200:
-            logger.info(f"unmute {user_id}: successfully sent unmute post!")
-        logger.debug(f"{r.status_code}, {r.text}")
+
+        logger.info(f"unmute {user_id}: successfully sent unmute post!")
 
     def judge_users(self, users, block=False):
         """
@@ -1457,13 +1452,6 @@ class TwitterBot:
             if session_type != SessionType.Authenticated:
                 session, headers = TwitterBot.tmp_session_headers()
             r = session.get(url, headers=headers, params=encoded_params)
-            # print(r.status_code,r.text)
-            if r.status_code != 200:
-                logger.debug(f"{r.request.url}")
-                logger.debug(f"{headers}")
-                logger.debug(f"{r.status_code}, {r.text}")
-                r.raise_for_status()
-                break
 
             response = r.json()
             response = TwitterJSON(response)
@@ -1629,12 +1617,10 @@ class TwitterBot:
             "queryId": queryID_from_url(url),
         }
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code}, {r.text}")
 
-        if r.status_code == 200:
-            response = r.json()
-            response = TwitterJSON(response)
-            return response.data.delete_tweet.tweet_results
+        response = r.json()
+        response = TwitterJSON(response)
+        return response.data.delete_tweet.tweet_results
 
     def _tweet_creation_form(self, text, media_ids=None, conversation_control=None):
         form = copy.deepcopy(TwitterBot.create_tweet_form)
@@ -1693,9 +1679,6 @@ class TwitterBot:
                 "media_category": "tweet_image",
             }
             r = self._session.post(url, headers=headers, params=upload_init_form)
-            logger.debug(f"{r.status_code} {r.text}")
-            if r.status_code != 202:
-                return None
             response = r.json()
             media_id = response["media_id"]
 
@@ -1717,9 +1700,7 @@ class TwitterBot:
                     "media": ("blob", binary_data[starting_byte:ending_byte]),
                 }
                 r = self._session.post(url, headers=headers, params=upload_append_form, files=upload_file)
-                if r.status_code != 204:
-                    return None
-                logger.debug(f"{r.status_code} {r.text}")
+
                 starting_byte = ending_byte
                 current_segment += 1
 
@@ -1727,12 +1708,8 @@ class TwitterBot:
             # del headers["Content-Type"]
             upload_finalize_form = {"command": "FINALIZE", "media_id": media_id}
             r = self._session.post(url, headers=headers, params=upload_finalize_form)
-            logger.debug(f"{r.status_code} {r.text}")
-            if r.status_code != 201:
-                return None
-            else:
-                logger.info(f"{path} is successfully uploaded! media id: {media_id}")
-                return media_id
+            logger.info(f"{path} is successfully uploaded! media id: {media_id}")
+            return media_id
         except:
             return None
 
@@ -1757,8 +1734,6 @@ class TwitterBot:
             "queryId": queryID_from_url(url),
         }
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code} {r.text}")
-        r.raise_for_status()
 
         response = r.json()
         response = TwitterJSON(response)
@@ -1776,15 +1751,13 @@ class TwitterBot:
 
         # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code}, {r.text}")
 
         response = r.json()
         response = TwitterJSON(response)
 
-        if r.status_code == 200:
-            tweet_id = response.data.create_tweet.tweet_results.result.rest_id
-            logger.info(f"tweet {tweet_id} is successfully created")
-            return tweet_id
+        tweet_id = response.data.create_tweet.tweet_results.result.rest_id
+        logger.info(f"tweet {tweet_id} is successfully created")
+        return tweet_id
 
     def reply_to_tweet(self, tweet_id, text, image_paths=None):
         logger.debug("reply")
@@ -1796,15 +1769,13 @@ class TwitterBot:
 
         # data-raw is used; no url-encoding
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(r.status_code)
 
         response = r.json()
         response = TwitterJSON(response)
 
-        if r.status_code == 200:
-            reply_id = response.data.create_tweet.tweet_results.result.rest_id
-            logger.info(f"tweet {reply_id} in reply to {tweet_id} is successfully created")
-            return reply_id
+        reply_id = response.data.create_tweet.tweet_results.result.rest_id
+        logger.info(f"tweet {reply_id} in reply to {tweet_id} is successfully created")
+        return reply_id
 
     def create_thread(self, tweets, conversation_control=None, min_interval=10, max_interval=30):
         # tweets: a list of dicts
@@ -1865,16 +1836,14 @@ class TwitterBot:
         form["variables"]["execute_at"] = execute_at
 
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code}, {r.text}")
 
         response = r.json()
         response = TwitterJSON(response)
 
-        if r.status_code == 200:
-            tweet_id = response.data.tweet.rest_id
-            if tweet_id!=None:
-                logger.info(f"tweet {tweet_id} is successfully scheduled at {execute_at}")
-                return tweet_id
+        tweet_id = response.data.tweet.rest_id
+        if tweet_id!=None:
+            logger.info(f"tweet {tweet_id} is successfully scheduled at {execute_at}")
+            return tweet_id
 
     def delete_scheduled_tweet(self, tweet_id):
         logger.debug("delete scheduled tweet")
@@ -1889,15 +1858,13 @@ class TwitterBot:
         }
 
         r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code}, {r.text}")
 
         response = r.json()
         response = TwitterJSON(response)
 
-        if r.status_code == 200:
-            if response.data.scheduledtweet_delete == "Done":
-                logger.info(f"scheduled tweet {tweet_id} is successfully deleted")
-                return True
+        if response.data.scheduledtweet_delete == "Done":
+            logger.info(f"scheduled tweet {tweet_id} is successfully deleted")
+            return True
         return False
 
     @staticmethod
@@ -1911,8 +1878,7 @@ class TwitterBot:
             del tmp_headers["x-twitter-auth-type"]
 
             r = tmp_session.post( "https://api.twitter.com/1.1/guest/activate.json", data=b"", headers=tmp_headers)
-            if r.status_code == 200:
-                tmp_headers["x-guest-token"] = r.json()["guest_token"]
+            tmp_headers["x-guest-token"] = r.json()["guest_token"]
 
             # the ct0 value is just a random 32-character string generated from random bytes at client side
             tmp_session.cookies.set("ct0", genct0())
@@ -2000,10 +1966,6 @@ class TwitterBot:
 
         while True:
             r = self._session.get(url, headers=headers, params=form)
-            if r.status_code != 200:
-                logger.debug(f"{r.status_code}, {r.text}")
-                break
-            # print(r.text)
 
             logger.info(
                 f"x-rate-limit-remaining: {r.headers['x-rate-limit-remaining']} until x-rate-limit-reset: {int(r.headers['x-rate-limit-reset'])-datetime.now(timezone.utc).timestamp()}"
@@ -2125,9 +2087,8 @@ class TwitterBot:
             "Sec-Fetch-Site": "cross-site",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         }
-        r = requests.get(url, headers=headers, params=form)
-        logger.debug(f"{r.status_code} {r.text}")
-        if r.status_code == 200:
+        try:
+            r = requests.get(url, headers=headers, params=form)
             response = r.json()
             response = TwitterJSON(response)
             #print(tweet_id,r.text)
@@ -2184,17 +2145,15 @@ class TwitterBot:
                 **otherinfo,
             )
             return tweet
-        return None
+        except:
+            return None
 
     def pin_tweet(self, tweet_id):
         logger.debug("pin tweet")
         url = "https://api.twitter.com/1.1/account/pin_tweet.json"
         form = {"tweet_mode": "extended", "id": tweet_id}
         r = self._session.post(url, headers=self._headers, params=form)
-        if r.status_code != 200:
-            logger.debug(f"{r.status_code}, {r.text}")
-        else:
-            logger.info(f"{tweet_id} pinned!")
+        logger.info(f"{tweet_id} pinned!")
 
     def get_blocked(self):
         """
@@ -2245,10 +2204,8 @@ class TwitterBot:
             },
         }
         headers = self._json_headers()
-        r = self._session.post(url, headers=headers, data=json.dumps(form))
-        logger.debug(f"{r.status_code} {r.text}")
-        r.raise_for_status()
 
+        r = self._session.post(url, headers=headers, data=json.dumps(form))
         response = r.json()
         response = TwitterJSON(response)
         if response.data.user_notifications_email_notifications_put == "Done":
@@ -2266,10 +2223,8 @@ class TwitterBot:
         }
         headers = copy.deepcopy(self._headers)
         headers["Content-Type"] = "application/x-www-form-urlencoded"
-        r = self._session.post(url, headers=headers, data=urlencode(form))
-        logger.debug(f"{r.status_code} {r.text}")
-        r.raise_for_status()
 
+        r = self._session.post(url, headers=headers, data=urlencode(form))
         response = r.json()
         response = TwitterJSON(response)
         if response.protected == protected:
@@ -2287,13 +2242,12 @@ class TwitterBot:
 
         tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+
         r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        logger.debug(f"{r.status_code}, {r.text}")
-        if r.status_code == 200:
-            response = r.json()
-            response = TwitterJSON(response)
-            #if the tweet has been deleted, response.data.tweetResult.result would be None and _tweet_from_result would return None
-            return TwitterBot._tweet_from_result(response.data.tweetResult.result)
+        response = r.json()
+        response = TwitterJSON(response)
+        #if the tweet has been deleted, response.data.tweetResult.result would be None and _tweet_from_result would return None
+        return TwitterBot._tweet_from_result(response.data.tweetResult.result)
 
     @staticmethod
     @cache
@@ -2314,12 +2268,10 @@ class TwitterBot:
         r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
         #r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
-        if r.status_code == 200:
-            response = r.json()
-            response = TwitterJSON(response)
-            return TwitterBot._status_and_user_from_result(response.data.user.result)
-        else:
-            logger.debug(f"{r.status_code}, {r.text}")
+        response = r.json()
+        response = TwitterJSON(response)
+        return TwitterBot._status_and_user_from_result(response.data.user.result)
+
 
     #@staticmethod
     @cache
@@ -2340,12 +2292,9 @@ class TwitterBot:
         #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
         r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
 
-        if r.status_code == 200:
-            response = r.json()
-            response = TwitterJSON(response)
-            return TwitterBot._status_and_user_from_result(response.data.user.result)
-        else:
-            logger.debug(f"{r.status_code}, {r.text}")
+        response = r.json()
+        response = TwitterJSON(response)
+        return TwitterBot._status_and_user_from_result(response.data.user.result)
 
     @staticmethod
     def status_by_screen_name(screen_name):

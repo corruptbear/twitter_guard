@@ -50,7 +50,10 @@ class CustomSession(requests.Session):
         self.mount('https://', TimeoutHTTPAdapter(max_retries=retries))
 
     def request(self, *args, **kwargs):
-        return super(CustomSession, self).request(*args, **kwargs)
+        r = super(CustomSession, self).request(*args, **kwargs)
+        logger.debug(f"DEBUG: {r.status_code} {r.text}")
+        r.raise_for_status()
+        return r
 
     def get(self, *args, **kwargs):
         return self.request("GET", *args, **kwargs)

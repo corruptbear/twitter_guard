@@ -476,36 +476,38 @@ class ReportHandler:
         if report_type == _ReportType.TWEET or report_type == _ReportType.TWEET.value:
             form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)
 
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
-            headers=self._headers,
-            data=json.dumps(form),
-        )
+        try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
+                headers=self._headers,
+                data=json.dumps(form),
+            )
 
-        if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
+        except:
+            logger.error("{r.status_code}: get flow token failed")
+
         return r.status_code
 
     def _handle_intro(self):
         intro_payload = ReportHandler.intro_payload
         intro_payload["flow_token"] = self.flow_token
 
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(intro_payload),
-        )
-
         try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(intro_payload),
+            )
             response = r.json()
             self.flow_token = response["flow_token"]
             logger.debug(
-                f"{r.status_code} {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
+                f"{[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
             )
         except:
-            logger.info(r.status_code)
-            logger.debug(f"{r.text}")
+            logger.error("{r.status_code}: handle intro failed")
+
         return r.status_code
 
     def _handle_choices(self, choices):
@@ -527,41 +529,41 @@ class ReportHandler:
             choices_payload["subtask_inputs"][0]["subtask_id"] = "multi-selection"
             choices_payload["subtask_inputs"][0]["choice_selection"]["link"] = "skip_link"
 
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(choices_payload),
-        )
+        try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(choices_payload),
+            )
 
-        if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
 
             if "choice_selection" in response["subtasks"][0]:
                 logger.debug(
                     f"{r.status_code}, {[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
-                )
+                    )
             else:
                 logger.debug(f"{[s['subtask_id'] for s in response['subtasks']]}")
-        else:
-            logger.debug(f"{r.status_code} {r.text}")
+        except:
+            logger.error("{r.status_code}: submit choice form failed")
 
         return r.status_code
 
     def _handle_diagnosis(self):
         diagnosis_payload = ReportHandler.diagnosis_payload
         diagnosis_payload["flow_token"] = self.flow_token
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(diagnosis_payload),
-        )
-
-        if r.status_code == 200:
-            logger.info("clicked yes in validation!")
+        
+        try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(diagnosis_payload),
+            )
             response = r.json()
             self.flow_token = response["flow_token"]
-        else:
+            logger.info("clicked yes in validation!")
+        except:
             logger.error(f"{r.status_code}: validation click failed")
 
         return r.status_code
@@ -571,39 +573,37 @@ class ReportHandler:
         review_submit_payload["flow_token"] = self.flow_token
         review_submit_payload["subtask_inputs"][1]["enter_text"]["text"] = context_text
 
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(review_submit_payload),
-        )
-
-        if r.status_code == 200:
-            logger.info("successfully submitted!")
+        try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(review_submit_payload),
+            )
             response = r.json()
             self.flow_token = response["flow_token"]
-        else:
-            logger.error(f"{r.status_code} submit failed")
+            logger.info("successfully submitted!")
+        except:
+            logger.error(f"{r.status_code}: submit failed")
             logger.debug(f"{r.headers}")
             logger.debug(f"{review_submit_payload}")
-            logger.debug(f"{r.text}")
+
         return r.status_code
 
     def _handle_completion(self):
         completion_payload = ReportHandler.completion_payload
         completion_payload["flow_token"] = self.flow_token
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(completion_payload),
-        )
 
-        if r.status_code == 200:
-            logger.info("successfully completed!")
+        try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(completion_payload),
+            )
             response = r.json()
             self.flow_token = response["flow_token"]
-        else:
-            logger.info(r.status_code)
-            logger.debug(f"{r.text}")
+            logger.info("successfully completed!")
+        except:
+            logger.error(f"{r.status_code}: completion failed")
         return r.status_code
 
     def _handle_target(self, target):
@@ -622,18 +622,17 @@ class ReportHandler:
 
         target_payload["flow_token"] = self.flow_token
 
-        r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
-            headers=self._headers,
-            data=json.dumps(target_payload),
-        )
-
         try:
+            r = self._session.post(
+                "https://api.twitter.com/1.1/report/flow.json",
+                headers=self._headers,
+                data=json.dumps(target_payload),
+            )
             response = r.json()
             self.flow_token = response["flow_token"]
         except:
-            logger.info(r.status_code)
-            logger.debug(f"{r.text}")
+            logger.error(f"{r.status_code}: handle target failed")
+
         return r.status_code
 
     def _report(
