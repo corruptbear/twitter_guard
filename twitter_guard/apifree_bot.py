@@ -1315,11 +1315,12 @@ class TwitterBot:
         if not result:
             #to handle the deleted tweet case for tweet_by_rest_id
             return
-        tweet_type = TwitterBot._tweet_type(result.legacy)
         try:
+            tweet_type = TwitterBot._tweet_type(result.legacy)
             _, user = TwitterBot._status_and_user_from_result(result.core.user_results.result)
         except:
             logger.debug(f"{result}")
+            return
 
         # None by default
         quoted_tweet_id, quoted_user_id = None, None
@@ -1391,6 +1392,8 @@ class TwitterBot:
     def _yield_tweet_from_result(result):
         #a wrapper to facilitate the use of yield from so that non-yielded ones are ignored automatically without having to check None
         tweet = TwitterBot._tweet_from_result(result)
+        if not tweet:
+            return
         # TODO: might be redundant if  promoted-tweet is already filtered at entryId in _text_from_entries
         if not (("advertiser-interface" in tweet.source) or ("Twitter for Advertisers" in tweet.source)):
             yield tweet
