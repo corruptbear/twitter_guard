@@ -2245,7 +2245,7 @@ class TwitterBot:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
 
         r = self._session.post(url, headers=headers, data=urlencode(form))
-        if r.status == 200:
+        if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
             if response.protected == protected:
