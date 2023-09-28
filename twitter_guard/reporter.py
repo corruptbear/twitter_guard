@@ -273,8 +273,6 @@ class ReportHandler:
         },
     }
 
-    intro_payload = {"subtask_inputs": [{"subtask_id": "introduction", "cta": {"link": "Other"}}]}
-
     choices_payload = {
         "subtask_inputs": [
             {
@@ -286,37 +284,12 @@ class ReportHandler:
         ]
     }
 
-    diagnosis_payload = {
-        "subtask_inputs": [
-            {
-                "subtask_id": "diagnosis",
-                "settings_list": {"setting_responses": [], "link": "Yes"},
-            }
-        ]
-    }
-
     user_search_payload = {
         "subtask_inputs": [
             {
                 "subtask_id": "typeahead-search",
                 "typeahead_search": {"link": "next_link", "selected_item_id": ""},
             }
-        ]
-    }
-
-    review_submit_payload = {
-        "subtask_inputs": [
-            {
-                "subtask_id": "review-and-submit",
-                "settings_list": {"setting_responses": [], "link": "next_link"},
-            },
-            {
-                "subtask_id": "text-input-comment",
-                "enter_text": {
-                    "text": "this account is part of a coordinated campaingn from china government",
-                    "link": "text-input-more-context-next",
-                },
-            },
         ]
     }
 

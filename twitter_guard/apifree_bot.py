@@ -2229,7 +2229,7 @@ class TwitterBot:
             response = r.json()
             response = TwitterJSON(response)
             if response.data.user_notifications_email_notifications_put == "Done":
-                logger.info("{tweet_id} email notification change success!")
+                logger.info(f"{form['variables']['userId']} email notification change success!")
 
     def set_protected_status(self, protected = False):
         url = "https://api.twitter.com/1.1/account/settings.json"
