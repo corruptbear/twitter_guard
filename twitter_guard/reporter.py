@@ -338,11 +338,7 @@ class ReportHandler:
             # add async version of functions
             for f in [
                 ReportHandler._get_flow_token,
-                ReportHandler._handle_intro,
-                ReportHandler._handle_target,
                 ReportHandler._handle_choices,
-                ReportHandler._handle_diagnosis,
-                ReportHandler._handle_review_and_submit,
                 ReportHandler._handle_completion,
             ]:
                 # get the code of the original class
@@ -469,27 +465,6 @@ class ReportHandler:
 
         return r.status_code
 
-    def _handle_intro(self):
-        intro_payload = ReportHandler.intro_payload
-        intro_payload["flow_token"] = self.flow_token
-
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(intro_payload),
-            )
-            response = r.json()
-            self.flow_token = response["flow_token"]
-            logger.debug(
-                f"{[s['id'] for s in response['subtasks'][0]['choice_selection']['choices']]}"
-            )
-        except:
-            logger.error(f"{r.status_code}: handle intro failed")
-            logger.debug(f"{r.text}")
-
-        return r.status_code
-
     def _handle_choices(self, choices):
         # make choices
         choices_payload = copy.deepcopy(ReportHandler.choices_payload)
@@ -529,47 +504,6 @@ class ReportHandler:
 
         return r.status_code
 
-    def _handle_diagnosis(self):
-        diagnosis_payload = ReportHandler.diagnosis_payload
-        diagnosis_payload["flow_token"] = self.flow_token
-        
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(diagnosis_payload),
-            )
-            response = r.json()
-            self.flow_token = response["flow_token"]
-            logger.info("clicked yes in validation!")
-        except:
-            logger.error(f"{r.status_code}: validation click failed")
-            logger.debug(f"{r.text}")
-
-        return r.status_code
-
-    def _handle_review_and_submit(self, context_text):
-        review_submit_payload = ReportHandler.review_submit_payload
-        review_submit_payload["flow_token"] = self.flow_token
-        review_submit_payload["subtask_inputs"][1]["enter_text"]["text"] = context_text
-
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(review_submit_payload),
-            )
-            response = r.json()
-            self.flow_token = response["flow_token"]
-            logger.info("successfully submitted!")
-        except:
-            logger.error(f"{r.status_code}: submit failed")
-            logger.debug(f"{r.text}")
-            logger.debug(f"{r.headers}")
-            logger.debug(f"{review_submit_payload}")
-
-        return r.status_code
-
     def _handle_completion(self):
         completion_payload = ReportHandler.completion_payload
         completion_payload["flow_token"] = self.flow_token
@@ -586,36 +520,6 @@ class ReportHandler:
             logger.info("successfully completed!")
         else:
             logger.error(f"{r.status_code}: completion failed")
-
-        return r.status_code
-
-    def _handle_target(self, target):
-        target_payload = copy.deepcopy(ReportHandler.choices_payload)
-
-        if target == "Me":
-            target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["TargetingMeOption"]
-        elif target == "Other":
-            target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["ZazuTargetingSomeoneElseOrGroupOption"]
-        elif target == "Everyone":
-            target_payload["subtask_inputs"][0]["choice_selection"]["selected_choices"] = ["EveryoneOnTwitterOption"]
-
-        logger.debug(
-            f"target: {target_payload['subtask_inputs'][0]['choice_selection']['selected_choices']}"
-        )
-
-        target_payload["flow_token"] = self.flow_token
-
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(target_payload),
-            )
-            response = r.json()
-            self.flow_token = response["flow_token"]
-        except:
-            logger.error(f"{r.status_code}: handle target failed")
-            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -652,12 +556,6 @@ class ReportHandler:
         ):
             return
 
-        #if self._handle_intro() != 200:
-        #    return
-
-        #if self._handle_target(target) != 200:
-        #    return
-
         for choice in options:
             # skip the question that only appears when you report from profile for reports on tweets
             # have not seen this case after the sep 2023 update
@@ -666,17 +564,6 @@ class ReportHandler:
             if self._handle_choices(choice) != 200:
                 return
 
-        #if self._handle_diagnosis() != 200:
-        #    return
-
-        #if context_msg is not None:
-        #    context_text = context_msg
-        #else:
-            # use default context text of the presets
-        #    context_text = ReportOption.options[option_name]["context_text"]
-
-        #if self._handle_review_and_submit(context_text) != 200:
-        #    return
         if self._handle_completion() != 200:
             return
         return 200
