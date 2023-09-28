@@ -372,7 +372,7 @@ class ReportHandler:
 
         self._headers = headers
         self._session = session
-        self._async_session = aiohttp.ClientSession(cookies=session.cookies, raise_for_status=True)#aiohttp.ClientSession(cookies=session.cookies)
+        self._async_session = aiohttp.ClientSession(cookies=session.cookies, raise_for_status=False)#aiohttp.ClientSession(cookies=session.cookies)
         self.bot = bot
         self._headers["Content-Type"] = "application/json"
 
@@ -455,18 +455,17 @@ class ReportHandler:
         if report_type == _ReportType.TWEET or report_type == _ReportType.TWEET.value:
             form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)
 
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
-                headers=self._headers,
-                data=json.dumps(form),
-            )
 
+        r = self._session.post(
+            "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
+            headers=self._headers,
+            data=json.dumps(form),
+        )
+        if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
-        except:
+        else:
             logger.error(f"{r.status_code}: get flow token failed")
-            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -510,13 +509,12 @@ class ReportHandler:
             choices_payload["subtask_inputs"][0]["subtask_id"] = "multi-selection"
             choices_payload["subtask_inputs"][0]["choice_selection"]["link"] = "skip_link"
 
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(choices_payload),
-            )
-
+        r = self._session.post(
+            "https://api.twitter.com/1.1/report/flow.json",
+            headers=self._headers,
+            data=json.dumps(choices_payload),
+        )
+        if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
 
@@ -526,9 +524,8 @@ class ReportHandler:
                     )
             else:
                 logger.debug(f"{[s['subtask_id'] for s in response['subtasks']]}")
-        except:
+        else:
             logger.error(f"{r.status_code}: submit choice form failed")
-            logger.debug(f"{r.text}")
 
         return r.status_code
 
@@ -577,18 +574,19 @@ class ReportHandler:
         completion_payload = ReportHandler.completion_payload
         completion_payload["flow_token"] = self.flow_token
 
-        try:
-            r = self._session.post(
-                "https://api.twitter.com/1.1/report/flow.json",
-                headers=self._headers,
-                data=json.dumps(completion_payload),
-            )
+        r = self._session.post(
+            "https://api.twitter.com/1.1/report/flow.json",
+            headers=self._headers,
+            data=json.dumps(completion_payload),
+        )
+
+        if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
             logger.info("successfully completed!")
-        except:
+        else:
             logger.error(f"{r.status_code}: completion failed")
-            logger.debug(f"{r.text}")
+
         return r.status_code
 
     def _handle_target(self, target):
