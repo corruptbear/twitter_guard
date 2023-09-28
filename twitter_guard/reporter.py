@@ -112,91 +112,70 @@ class _ReportType(Enum):
 
 class ReportOption:
     SpammedOption = "SpammedOption"
-    HarassedOrViolenceOption = "HarassedOrViolenceOption"
-    SexuallyHarassingOption = "SexuallyHarassingOption"
 
-    ShownMisleadingInfoOption = "ShownMisleadingInfoOption"
-    UsingMultipleAccountsOption = "UsingMultipleAccountsOption"
-    LikeRetweetReplySpamOption = "LikeRetweetReplySpamOption"
-
+    AbusiveBehaviorOption = "AbusiveBehaviorOption"
+    UnwantedSexualContentOption = "UnwantedSexualContentOption"
+    TargetedHarassmentOption = "TargetedHarassmentOption"
     InsultingOption = "InsultingOption"
-    WishingHarmOption = "WishingHarmOption"
 
+    PrivacyOption = "PrivacyOption"
     PostingPrivateInfoOption = "PostingPrivateInfoOption"
     ThreateningToExposeOption = "ThreateningToExposeOption"
-    PrivateInfoContactInfoOption = "PrivateInfoContactInfoOption"
-    OtherOption = "OtherOption"
+    MyPrivateInfo = "MyPrivateInfo"
+    BelongToSomeone = "BelongToSomeone"
+    AuthorizedOnBehalf = "AuthorizedOnBehalf"
+    
+    ViolentSpeechOption = "ViolentSpeechOption"
+    WishOfHarmOption = "WishOfHarmOption"
+    ThreateningWithViolence = "ThreateningWithViolence"
 
-    ZazuImpersonationOption = "ZazuImpersonationOption"
-    PretendingToBeOption = "PretendingToBeOption"
-
-    GeneralMisinformationPoliticsOption = "GeneralMisinformationPoliticsOption"
-    GeneralMisinformationPoliticsOtherOption = "GeneralMisinformationPoliticsOtherOption"
-
-    IdentityGenderOption = "IdentityGenderOption"
-    IdentitySexualOrientation = "IdentitySexualOrientation"
-
-    ReportedsProfileOption = "ReportedsProfileOption"
-    ReportedsTweetsOption = "ReportedsTweetsOption"
-
-    # TODO: handle from profile or from tweet
     options = {
         "Spam": {
-            "options": [[SpammedOption], [LikeRetweetReplySpamOption]],
-            "context_text": "this account aggressively posts the same spam reply again and again to different users",
+            "options": [[SpammedOption]],
         },
-        "GovBot": {
-            "options": [[SpammedOption], [UsingMultipleAccountsOption]],
-            "context_text": "this account, likely running by a nation-state actor, shows hallmark of coordinated inauthentic behaviors",
-        },
-        "PoliticalDisinfo": {
-            "options": [
-                [ShownMisleadingInfoOption],
-                [GeneralMisinformationPoliticsOption],
-                [GeneralMisinformationPoliticsOtherOption],
-            ],
-            "context_text": "the image of this tweet is exclusively used by the disinfo campaign of a nation-state actor",
-        },
-        # TODO: to be fixed
         "SexualHarassment": {
-            "options": [[HarassedOrViolenceOption], [SexuallyHarassingOption]],
-            "context_text": "this person has been harrasing me for months. most of its previous accounts are suspended, this is the latest one.",
+            "options": [
+                [AbusiveBehaviorOption],
+                [UnwantedSexualContentOption]
+            ]
         },
+        "TargetedHarassment": {
+            "options": [
+                [AbusiveBehaviorOption],
+                [TargetedHarassmentOption]
+            ]
+        },
+        "Insulting": {
+            "options": [
+                [AbusiveBehaviorOption],
+                [InsultingOption]
+            ]
+        },
+        #TODO: me or other BelongToSomeone
         "PostingPrivateInfo": {
             "options": [
-                [HarassedOrViolenceOption],
+                [PrivacyOption],
                 [PostingPrivateInfoOption],
-                [PrivateInfoContactInfoOption, OtherOption],
-                [ReportedsProfileOption],
+                [MyPrivateInfo],
             ]
         },
         "ThreateningToExpose": {
             "options": [
-                [HarassedOrViolenceOption],
+                [PrivacyOption],
                 [ThreateningToExposeOption],
-                [PrivateInfoContactInfoOption, OtherOption],
+                [MyPrivateInfo],
             ]
         },
         "WishingHarm": {
             "options": [
-                [HarassedOrViolenceOption],
-                [WishingHarmOption],
-                [],
-                [ReportedsProfileOption],
+                [ViolentSpeechOption],
+                [WishOfHarmOption],
             ],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it wishes me harm.",
         },
-        # [ReportOption.IdentityGenderOption,ReportOption.IdentitySexualOrientation]
-        "Insulting": {
-            "options": [[HarassedOrViolenceOption], [InsultingOption], []],
-            "context_text": "this person has been harrasing me for months, with multiple accounts already suspended. it keeps insulting me.",
-        },
-        # TODO: only form me; needs to figure out for others
-        "Impersonation": {
+        "ViolentThreat": {
             "options": [
-                [ZazuImpersonationOption],
-                [PretendingToBeOption],
-                ["TargetingMeOption"],
+                [ViolentSpeechOption],
+                [ThreateningWithViolence],
             ],
         },
     }
@@ -675,30 +654,31 @@ class ReportHandler:
         ):
             return
 
-        if self._handle_intro() != 200:
-            return
+        #if self._handle_intro() != 200:
+        #    return
 
-        if self._handle_target(target) != 200:
-            return
+        #if self._handle_target(target) != 200:
+        #    return
 
         for choice in options:
             # skip the question that only appears when you report from profile for reports on tweets
-            if tweet_id is not None and ReportOption.ReportedsProfileOption in choice:
-                continue
+            # have not seen this case after the sep 2023 update
+            #if tweet_id is not None and ReportOption.ReportedsProfileOption in choice:
+            #    continue
             if self._handle_choices(choice) != 200:
                 return
 
-        if self._handle_diagnosis() != 200:
-            return
+        #if self._handle_diagnosis() != 200:
+        #    return
 
-        if context_msg is not None:
-            context_text = context_msg
-        else:
+        #if context_msg is not None:
+        #    context_text = context_msg
+        #else:
             # use default context text of the presets
-            context_text = ReportOption.options[option_name]["context_text"]
+        #    context_text = ReportOption.options[option_name]["context_text"]
 
-        if self._handle_review_and_submit(context_text) != 200:
-            return
+        #if self._handle_review_and_submit(context_text) != 200:
+        #    return
         if self._handle_completion() != 200:
             return
         return 200
