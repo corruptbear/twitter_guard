@@ -8,7 +8,7 @@ from urllib.parse import urlencode, quote, unquote
 from urllib.request import urlopen, Request
 import http.cookiejar
 
-from dataclasses import dataclass, field, asdict as dtc_asdict
+from dataclasses import dataclass, field, fields, asdict as dtc_asdict
 from functools import cache
 
 from datetime import datetime, timezone
@@ -232,7 +232,12 @@ class TwitterUserProfile:
             created_time = datetime.strptime(self.created_at, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=timezone.utc).astimezone(tz.gettz())
             time_diff = current_time - created_time
             self.days_since_registration = time_diff.days
-
+        #convert any TwitterJSON(None) to None, so that it does not cause problem for asdict
+        for field_obj in fields(self):
+            field_name = field_obj.name
+            field_value = getattr(self, field_name)
+            if field_value == None:
+                setattr(self, field_name, None)
 
 @dataclass
 class Tweet:
@@ -264,7 +269,12 @@ class Tweet:
     def __post_init__(self):
         if self.view_count:
             self.view_count = int(self.view_count)
-
+        #convert any TwitterJSON(None) to None, so that it does not cause problem for asdict
+        for field_obj in fields(self):
+            field_name = field_obj.name
+            field_value = getattr(self, field_name)
+            if field_value == None:
+                setattr(self, field_name, None)
 
 @dataclass
 class TwitterList:
