@@ -1025,6 +1025,24 @@ class TwitterBot:
         if r.status_code == 200:
             logger.info(f"unmute {user_id}: successfully sent unmute post!")
 
+    def remove_follower(self, user_id):
+        """
+        Removes specific follower.
+        The query will be successful even if the user is not following you.
+        """
+        user_id = self.numerical_id(user_id)
+        url = "https://twitter.com/i/api/graphql/QpNfg0kpPRfjROQ_9eOLXA/RemoveFollower"
+        remove_follower_form = {
+            "queryId": queryID_from_url(url),
+            "variables": {
+                "target_user_id": user_id
+            }
+        }
+        r = self._session.post(url, headers=self._json_headers(), data=json.dumps(remove_follower_form))
+
+        if r.status_code == 200:
+            logger.info(f"remove follower {user_id}: successfully removed!")
+
     def judge_users(self, users, block=False):
         """
         Examine users coming from the notifications one by one.
