@@ -225,6 +225,7 @@ class TwitterUserProfile:
     days_since_registration: int = field(init=False, default=None)
     display_name: str = field(default=None, metadata={"keyword_only": True})
     blocked: bool = field(default=None)
+    protected: bool = field(default=None)
 
     def __post_init__(self):
         if self.created_at is not None:
@@ -960,7 +961,7 @@ class TwitterBot:
             TwitterBot.notification_all_form["cursor"] = self._config_dict["latest_cursor"]
         logger.info(f"after loading cursor:{TwitterBot.notification_all_form['cursor']}")
 
-    def update_remote_cursor(self, val):
+    def _update_remote_cursor(self, val):
         url = "https://api.twitter.com/2/notifications/all/last_seen_cursor.json"
         cursor_form = {"cursor": val}
         r = self._session.post(url, headers=self._headers, params=cursor_form)
@@ -977,7 +978,7 @@ class TwitterBot:
         The badge will disappear after you refresh in a non-notification page
         """
 
-        self.update_remote_cursor(TwitterBot.notification_all_form["cursor"])
+        self._update_remote_cursor(TwitterBot.notification_all_form["cursor"])
 
     def block_user(self, user_id):
         user_id = self.numerical_id(user_id)
@@ -1274,6 +1275,7 @@ class TwitterBot:
                 favourites_count=user.favourites_count,
                 display_name=user.name,
                 blocked=user.blocking,
+                protected=user.protected,
             )
             if result.legacy.profile_interstitial_type == "fake_account":
                 return "fake_account", p
