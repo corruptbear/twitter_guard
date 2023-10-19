@@ -1590,8 +1590,15 @@ class TwitterBot:
 
     def get_following(self, user_id, batch_count=100):
         """
-        Gets the list of following.
-        Returns a list of TwitterUserProfile.
+        Gets the list of followed users of a specific user. Login required.
+        Due to twitter restriction, not all followed users will be returned.
+
+        Parameters:
+        user_id (int | str): the rest id of the user.
+        batch_count (int): the pagination count.
+
+        Yields:
+        TwitterUserProfile: A followed user.
         """
         user_id = self.numerical_id(user_id)
 
@@ -1610,8 +1617,15 @@ class TwitterBot:
 
     def get_followers(self, user_id, batch_count=100):
         """
-        Gets the list of followers.
-        Returns a list of TwitterUserProfile.
+        Gets the list of followers of a specific user. Login required.
+        Due to twitter restriction, not all followers will be returned.
+
+        Parameters:
+        user_id (int | str): the rest id of the user.
+        batch_count (int): the pagination count.
+
+        Yields:
+        TwitterUserProfile: A follower.
         """
         user_id = self.numerical_id(user_id)
 
@@ -1630,8 +1644,14 @@ class TwitterBot:
 
     def get_retweeters(self, tweet_id, batch_count=100):
         """
-        Gets the list of visible (not locked) retweeters.
-        Returns a list of TwitterUserProfile.
+        Gets the list of visible retweeters of a tweet.
+
+        Parameters:
+        tweet_id (int | str): the rest id of the tweet.
+        batch_count (int): the pagination count.
+
+        Yields:
+        TwitterUserProfile: A retweeter.
         """
         # needs to have the br decoding library installed for requests to handle br compressed results
 
@@ -1769,23 +1789,45 @@ class TwitterBot:
         return media_ids
 
     def conversation_control_change(self, tweet_id=None, mode=None):
-        # can only be used on the original tweet in a thread
-        logger.debug("conversation control change")
-        url = "https://twitter.com/i/api/graphql/hb1elGcj6769uT8qVYqtjw/ConversationControlChange"
+        """
+        Change the conversation control setting of a thread.
+        Can only be used on the original tweet in a thread.
+
+        Parameters:
+        tweet_id (int | str): the id of the main post of the thread.
+        mode (str): who can replies to the created tweet. Possible values: ByInvitation, Community, Everyone
+        """
+        logger.info("conversation control change")
+        if mode!="Everyone":
+            url = "https://twitter.com/i/api/graphql/hb1elGcj6769uT8qVYqtjw/ConversationControlChange"
+        else:
+            url = "https://twitter.com/i/api/graphql/OoMO_aSZ1ZXjegeamF9QmA/ConversationControlDelete"
         headers = self._json_headers()
         form = {
-            "variables": {"tweet_id": str(tweet_id), "mode": mode},
+            "variables": {"tweet_id": str(tweet_id)},
             "queryId": queryID_from_url(url),
         }
+        if mode!="Everyone":
+            form["variables"]["mode"] = mode
         r = self._session.post(url, headers=headers, data=json.dumps(form))
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
-            if response.data.tweet_conversation_control_put == "Done":
-                logger.info("{tweet_id} conversation control change success!")
+            if response.data.tweet_conversation_control_put == "Done" or response.data.tweet_conversation_control_delete == "Done":
+                logger.info(f"{tweet_id} conversation control change to mode: {mode} success!")
 
     def create_tweet(self, text, image_paths=None, conversation_control=None):
-        # conversation_control vals: ByInvitation, Community
+        """
+        Create an original tweet, starting a new thread.
+
+        Parameters:
+        text (str): the text content of the tweet.
+        image_paths (list): a list of full paths of local images used in the tweet.
+        conversation_control (str): who can replies to the created tweet. Possible values: ByInvitation, Community
+
+        Returns:
+        tweet_id (int): the id of the created tweet.
+        """
         logger.debug("tweet")
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
         headers = self._tweet_creation_headers()
@@ -1804,6 +1846,17 @@ class TwitterBot:
             return tweet_id
 
     def reply_to_tweet(self, tweet_id, text, image_paths=None):
+        """
+        Replies to an existing tweet.
+
+        Parameters:
+        tweet_id (int | str): the id of the tweet being replied to.
+        text (str): the text content of the reply.
+        image_paths (list): a list of full paths of local images used in the reply.
+
+        Returns:
+        reply_id (int): the id of the created reply.
+        """
         logger.debug("reply")
         url = "https://twitter.com/i/api/graphql/VtVTvbMKuYFBF9m1s4L1sw/CreateTweet"
         headers = self._reply_creation_headers()
@@ -1839,14 +1892,17 @@ class TwitterBot:
 
     def create_scheduled_tweet(self, text, image_paths=None, execute_at=None, in_reply_to=None, quote_from=None):
         """
-        Report all users from tweet search result in the same way.
+        Create a scheduled tweet.
 
         Parameters:
-        text (str): the text content of the tweet
-        image_paths (list): a list of full paths of local images
-        execute_at (int): future UTC time in utc timestamp
-        in_reply_to (int | str): if created as a reply, the tweet_id of the tweet being replied to
-        quote_from (int): if created as quote, the tweet_id of the tweet being quoted
+        text (str): the text content of the tweet.
+        image_paths (list): a list of full paths of local images used in the tweet.
+        execute_at (int): future UTC time in utc timestamp.
+        in_reply_to (int | str): if created as a reply, the tweet_id of the tweet being replied to.
+        quote_from (int): if created as quote, the tweet_id of the tweet being quoted.
+
+        Returns:
+        tweet_id (int): the id of the scheduled tweet.
         """
         logger.debug("scheduled tweet")
         headers = self._tweet_creation_headers()
@@ -1884,12 +1940,21 @@ class TwitterBot:
             response = r.json()
             response = TwitterJSON(response)
 
-            tweet_id = response.data.tweet.rest_id
+            tweet_id = int(response.data.tweet.rest_id)
             if tweet_id!=None:
                 logger.info(f"tweet {tweet_id} is successfully scheduled at {execute_at}")
                 return tweet_id
 
     def delete_scheduled_tweet(self, tweet_id):
+        """
+        Delete a scheduled tweet.
+
+        Parameters:
+        tweet_id (int | str): the id of the scheduled tweet to be deleted.
+
+        Returns:
+        bool: True if the scheduled tweet was successfully deleted, False otherwise.
+        """
         logger.debug("delete scheduled tweet")
         headers = self._json_headers()
         headers["Referer"] = "https://twitter.com/compose/tweet/schedule"
@@ -1913,6 +1978,14 @@ class TwitterBot:
 
     @staticmethod
     def tmp_session_headers():
+        """
+        Update non-login session and headers used in non-login methods as necessary.
+
+        Returns:
+            Tuple: A tuple containing the non-login session and the non-login headers.
+                - Session: A non-login session object used for making requests.
+                - dict: A dictionary containing non-login headers.
+        """
         if TwitterBot.tmp_count == 0:
             tmp_session = Session()
 
@@ -2098,6 +2171,15 @@ class TwitterBot:
     # @staticmethod
     # def tweet_detail(tweet_id):
     def tweet_detail(self, tweet_id):
+        """
+        Get the main post and the comments of a tweet thread. Login required.
+
+        Parameters:
+        tweet_id (int | str): the id of the tweet.
+
+        Yields:
+        Tweet: The main post of the tweet, or an individual comment.
+        """
         # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.debug("get tweet details")
 
@@ -2206,7 +2288,10 @@ class TwitterBot:
 
     def get_blocked(self):
         """
-        Get the list of blocked accounts.
+        Get the list of accounts blocked by the current account.
+
+        Yields:
+        TwitterUserProfile: blocked user.
         """
         url = "https://twitter.com/i/api/graphql/kpS7GZQ96pe3n5dIzKS2wg/BlockedAccountsAll"
         form = copy.deepcopy(TwitterBot.blocklist_form)
@@ -2219,7 +2304,10 @@ class TwitterBot:
 
     def get_muted(self):
         """
-        Get the list of muted accounts
+        Get the list of accounts muted by the current owner.
+
+        Yields:
+        TwitterUserProfile: muted user.
         """
         url = "https://twitter.com/i/api/graphql/g40AoFEAdKggdYivmA2bSg/MutedAccounts"
         form = copy.deepcopy(TwitterBot.blocklist_form)
@@ -2232,7 +2320,10 @@ class TwitterBot:
 
     def get_current_id(self):
         """
-        Returns the numerical id of the current account
+        Get the numerical id of the current account from the session's cookies.
+
+        Returns:
+            int: The numerical id of the current account user extracted from the session cookies.
         """
         current_id = unquote(self._session.cookies["twid"]).replace('"', "")
         current_id = int(current_id.split("=")[1])
@@ -2283,6 +2374,15 @@ class TwitterBot:
 
     @staticmethod
     def tweet_by_rest_id(tweet_id):
+        """
+        Get the main post of tweet, ignoring all comments. Login-free.
+
+        Parameters:
+        tweet_id (int | str): the id of the tweet.
+
+        Returns:
+        Tweet: The main post of the tweet.
+        """
         url = "https://twitter.com/i/api/graphql/0hWvDhmW8YQ-S_ib3azIrw/TweetResultByRestId"
         form = {
             "variables":{"tweetId":str(tweet_id),"withCommunity":False,"includePromotedContent":False,"withVoice":False},
