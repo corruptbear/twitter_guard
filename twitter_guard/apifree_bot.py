@@ -944,10 +944,10 @@ class TwitterBot:
         url = "https://api.twitter.com/2/badge_count/badge_count.json"
         badge_form = TwitterBot.badge_form
         r = self._session.get(url, headers=self._headers, params=badge_form)
-
+        result = None
         if r.status_code == 200:
             result = r.json()
-            return r.status_code, result
+        return r.status_code, result
 
     def update_local_cursor(self, val):
         TwitterBot.notification_all_form["cursor"] = val
