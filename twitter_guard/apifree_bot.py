@@ -332,7 +332,7 @@ class TwitterLoginBot:
         # get the flow_token
         self.get_login_flow_token()
 
-        while int(self.login_flow_token.split(":")[-1]) != 13:
+        while self._subtask!="LoginSuccessSubtask":
             self._do_task()
 
         # one more time to get longer ct0
@@ -469,15 +469,14 @@ class TwitterLoginBot:
             ],
         }
 
-        # may be useful in the future if the mapping if subject to change
         self.tasks = {
-            0: {"name": "LoginJsInstrumentationSubtask", "payload": self.get_sso_payload},
-            1: {"name": "LoginEnterUserIdentifierSSO", "payload": self.enter_email_payload},
-            5: {"name": "LoginEnterAlternateIdentifierSubtask", "payload": self.enter_alternative_id_payload},
-            6: {"name": "LoginEnterPassword", "payload": self.enter_password_payload},
-            7: {"name": "AccountDuplicationCheck", "payload": self.account_duplication_check_payload},
-            8: {"name": "LoginAcid", "payload": self.acid_payload},
-            13: {"name": "LoginSuccessSubtask", "payload": self.get_full_ct0_payload},
+            "LoginJsInstrumentationSubtask": {"payload": self.get_sso_payload},
+            "LoginEnterUserIdentifierSSO": {"payload": self.enter_email_payload},
+            "LoginEnterAlternateIdentifierSubtask": {"payload": self.enter_alternative_id_payload},
+            "LoginEnterPassword": {"payload": self.enter_password_payload},
+            "AccountDuplicationCheck": {"payload": self.account_duplication_check_payload},
+            "LoginAcid": {"payload": self.acid_payload},
+            "LoginSuccessSubtask": {"payload": self.get_full_ct0_payload},
         }
 
     def _customize_headers(self, case):
@@ -535,18 +534,22 @@ class TwitterLoginBot:
         j = r.json()
         self.login_flow_token = j["flow_token"]
         subtasks = j["subtasks"]
-
-        logger.debug(f"flow_token: {self.login_flow_token}")
+        for subtask in subtasks:
+            if subtask["subtask_id"] in self.tasks:
+                self._subtask = subtask["subtask_id"]
 
         for s in subtasks:
             logger.debug(f"{s['subtask_id']}")
+        logger.debug(f"flow_token: {self.login_flow_token}")
+        logger.debug(f"next subtask: {self._subtask }")
 
     def _do_task(self):
-        task = int(self.login_flow_token.split(":")[-1])
-        logger.debug(self.tasks[task]["name"])
+        #task = int(self.login_flow_token.split(":")[-1])
+        task = self._subtask
+        logger.debug(task)
 
         # establish session and prepare for enter email
-        if task == 0:
+        if task == "LoginJsInstrumentationSubtask":
             self._customize_headers("get_js")
             r = self._session.get("https://twitter.com/i/js_inst?c_name=ui_metrics", headers=self._headers)
 
@@ -581,7 +584,8 @@ class TwitterLoginBot:
             payload = self.tasks[task]["payload"]
 
             payload["flow_token"] = self.login_flow_token
-            if task == 8:
+
+            if task == "LoginAcid":
                 payload["subtask_inputs"][0]["enter_text"]["text"] = input(f"Enter Twitter Confirmation Code sent to {self._email}")
 
             # r = self._session.post(
