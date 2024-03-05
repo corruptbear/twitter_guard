@@ -37,7 +37,7 @@ setup_args = {
     'install_requires': [
         'aiohttp~=3.8.4',
         'matplotlib~=3.7.1',
-        'numpy~=1.22.3',
+        'numpy>=1.22.3',
         'pyparsing~=3.0.9',
         'python_dateutil~=2.8.2',
         'pytz~=2020.4',

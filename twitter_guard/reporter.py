@@ -117,6 +117,7 @@ class ReportOption:
     UnwantedSexualContentOption = "UnwantedSexualContentOption"
     TargetedHarassmentOption = "TargetedHarassmentOption"
     InsultingOption = "InsultingOption"
+    IncitingHarassmentOption = "IncitingHarassmentOption"
 
     PrivacyOption = "PrivacyOption"
     PostingPrivateInfoOption = "PostingPrivateInfoOption"
@@ -149,6 +150,12 @@ class ReportOption:
             "options": [
                 [AbusiveBehaviorOption],
                 [InsultingOption]
+            ]
+        },
+        "IncitingHarassment": {
+            "options": [
+                [AbusiveBehaviorOption],
+                [IncitingHarassmentOption]
             ]
         },
         #TODO: me or other BelongToSomeone
