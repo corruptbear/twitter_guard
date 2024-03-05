@@ -1649,6 +1649,35 @@ class TwitterBot:
         for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from self._users_from_entries(entries)
 
+    def get_user_likes(self, user_id, batch_count=100):
+        """
+        Get a user's liked tweets.
+
+        Parameters:
+        user_id (int | str): the rest id of the user
+        batch_count (int): the pagination count.
+
+        Yields:
+        Tweet: tweet fetched.
+        """
+        user_id = self.numerical_id(user_id)
+
+        url = "https://twitter.com/i/api/graphql/eSSNbhECHHWWALkkQq-YTA/Likes"
+
+        headers = self._json_headers()
+
+        form = copy.deepcopy(TwitterBot.combined_lists_form)
+        form["variables"]["userId"] = str(user_id)
+        form["variables"]["count"] = batch_count
+        form["variables"]["includePromotedContent"] = False
+        form["features"]["rweb_video_timestamps_enabled"] = True
+        form["features"]["c9s_tweet_anatomy_moderator_badge_enabled"] = True
+        form["features"]["longform_notetweets_rich_text_read_enabled"] = True
+
+        #for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
+            yield from TwitterBot._text_from_entries(entries)
+
     def get_retweeters(self, tweet_id, batch_count=100):
         """
         Gets the list of visible retweeters of a tweet.
