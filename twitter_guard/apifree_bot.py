@@ -859,6 +859,9 @@ class TwitterBot:
             traceback.print_exc()
             self.refresh_cookies()
 
+        uid = unquote(self._session.cookies['twid']).replace('"', '')
+        self.uid = int(uid.split("=")[1])
+
         # display_session_cookies(self._session)
 
         # when disabled, will use the default cursor
