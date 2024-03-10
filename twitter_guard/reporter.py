@@ -120,7 +120,7 @@ class ReportOption:
     IncitingHarassmentOption = "IncitingHarassmentOption"
 
     PrivacyOption = "PrivacyOption"
-    PostingPrivateInfoOption = "PostingPrivateInfoOption"
+    SharePersonalPhotoOption = "SharePersonalPhotoOption"
     ThreateningToExposeOption = "ThreateningToExposeOption"
     MyPrivateInfo = "MyPrivateInfo"
     BelongToSomeone = "BelongToSomeone"
@@ -159,10 +159,10 @@ class ReportOption:
             ]
         },
         #TODO: me or other BelongToSomeone
-        "PostingPrivateInfo": {
+        "SharePersonalPhoto": {
             "options": [
                 [PrivacyOption],
-                [PostingPrivateInfoOption],
+                [SharePersonalPhotoOption],
                 [MyPrivateInfo],
             ]
         },
