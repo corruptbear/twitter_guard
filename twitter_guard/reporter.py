@@ -1,6 +1,7 @@
 import re
 import json
 import secrets
+import base64
 from enum import Enum
 from time import sleep
 import copy
@@ -190,7 +191,7 @@ class ReportOption:
 
 def gen_report_flow_id():
     """
-    Generated report_flow_id
+    Generates report_flow_id
     Uses the method used in the js file of the website.
     """
 
@@ -210,6 +211,18 @@ def gen_report_flow_id():
             s += hex(d)[-2:]
 
     return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:]
+
+def gen_rand_transaction_id():
+    """
+    Generates random x-client-transaction-id
+    """
+    # Generate a random binary string
+    random_bytes = secrets.token_bytes(70)  # Adjust the byte size as needed for your entropy requirements
+
+    # Encode the binary string to base64
+    base64_string = base64.b64encode(random_bytes).decode('utf-8')
+
+    return base64_string[:94]
 
 
 class ReportHandler:
@@ -346,11 +359,14 @@ class ReportHandler:
         #this only runs once
         ReportHandler.async_expand()
 
-        self._headers = headers
+        self._headers = copy.deepcopy(headers)
         self._session = session
         self._async_session = aiohttp.ClientSession(cookies=session.cookies, raise_for_status=False)#aiohttp.ClientSession(cookies=session.cookies)
         self.bot = bot
+        #"X-Client-UUID" is not required
         self._headers["Content-Type"] = "application/json"
+        self._headers["Referer"] = "https://twitter.com/i/safety/report_story_start"
+        self._headers["Host"] = "twitter.com"
 
         reporter_id = unquote(self._session.cookies['twid']).replace('"', '')
         self.reporter_id = int(reporter_id.split("=")[1])
@@ -431,9 +447,10 @@ class ReportHandler:
         if report_type == _ReportType.TWEET or report_type == _ReportType.TWEET.value:
             form = self._prepare_report_tweet_form(screen_name, user_id, tweet_id)
 
-
+        #this header is required for successful reporting, but it is not authenticated now
+        self._headers["x-client-transaction-id"] = gen_rand_transaction_id()
         r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json?flow_name=report-flow",
+            "https://twitter.com/i/api/1.1/report/flow.json?flow_name=report-flow",
             headers=self._headers,
             data=json.dumps(form),
         )
@@ -465,7 +482,7 @@ class ReportHandler:
             choices_payload["subtask_inputs"][0]["choice_selection"]["link"] = "skip_link"
 
         r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
+            "https://twitter.com/i/api/1.1/report/flow.json",
             headers=self._headers,
             data=json.dumps(choices_payload),
         )
@@ -485,11 +502,11 @@ class ReportHandler:
         return r.status_code
 
     def _handle_completion(self):
-        completion_payload = ReportHandler.completion_payload
+        completion_payload = copy.deepcopy(ReportHandler.completion_payload)
         completion_payload["flow_token"] = self.flow_token
 
         r = self._session.post(
-            "https://api.twitter.com/1.1/report/flow.json",
+            "https://twitter.com/i/api/1.1/report/flow.json",
             headers=self._headers,
             data=json.dumps(completion_payload),
         )
@@ -497,7 +514,7 @@ class ReportHandler:
         if r.status_code == 200:
             response = r.json()
             self.flow_token = response["flow_token"]
-            logger.info("successfully completed!")
+            logger.info(f"status:{response['status']}")
         else:
             logger.error(f"{r.status_code}: completion failed")
 
