@@ -2600,26 +2600,26 @@ class TwitterBot:
             status, user_profile = values
             return status
 
-    #@staticmethod
-    def id_from_screen_name(self, screen_name):
+    @staticmethod
+    def id_from_screen_name(screen_name):
     #def id_from_screen_name(self, screen_name):
         """
         Convert user id to screen name
         """
-        values = self.user_by_screen_name(screen_name)
-
+        #values = self.user_by_screen_name(screen_name)
+        values = TwitterBot.user_by_screen_name(screen_name)
         if values:
             status, user_profile = values
             return user_profile.user_id
 
-    # @staticmethod
-    # def screen_name_from_id(user_id):
-    def screen_name_from_id(self, user_id):
+    @staticmethod
+    def screen_name_from_id(user_id):
+    #def screen_name_from_id(self, user_id):
         """
         Convert screen name to user id
         """
-        # values = TwitterBot.user_by_id(user_id)
-        values = self.user_by_id(user_id)
+        #values = self.user_by_id(user_id)
+        values = TwitterBot.user_by_id(user_id)
         if values:
             status, user_profile = values
             return user_profile.screen_name
