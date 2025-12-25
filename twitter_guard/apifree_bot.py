@@ -1661,7 +1661,7 @@ class TwitterBot:
 
         headers = self._json_headers()
 
-        url = "https://x.com/i/api/graphql/wG7KdD12Pl1NctWRWdbplQ/UserTweetsAndReplies"
+        url = "https://x.com/i/api/graphql/61HQnvcGP870hiE-hCbG4A/UserTweetsAndReplies"
 
         # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
