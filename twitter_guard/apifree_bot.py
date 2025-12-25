@@ -975,6 +975,13 @@ class TwitterBot:
             self.set_cookies_from_netscape_txt(self._cookie_path)
         # g_state is not necessary
 
+    def save_cookies_netscape_txt(self, cookie_path):
+        with open(cookie_path, "w") as f:
+            f.write("# Netscape HTTP Cookie File\n")
+            for x in self._session.cookies:
+                # DOMAIN(str) SUBDOMAIN?(bool) path(str) secure(bool) expire(int) name value
+                f.write(f".x.com\tTRUE\t{x.path}\t{str(x.secure).upper()}\t2147483647\t{x.name}\t{x.value}\n")
+
     def set_cookies_from_netscape_txt(self, cookie_path):
         cj = http.cookiejar.MozillaCookieJar(cookie_path)
         cj.load()
@@ -1597,6 +1604,8 @@ class TwitterBot:
             if len(data) == 0:
                 return
 
+            instructions = None
+
             if data.retweeters_timeline:
                 instructions = data.retweeters_timeline.timeline.instructions
             elif data.threaded_conversation_with_injections_v2:
@@ -1607,7 +1616,7 @@ class TwitterBot:
                 instructions = data.viewer.timeline.timeline.instructions  # blocklist
             elif data.viewer.muting_timeline:
                 instructions = data.viewer.muting_timeline.timeline.instructions  # mutelist
-            else:
+            elif data.user:
                 result = data.user.result
                 if result.timeline_v2:
                     instructions = result.timeline_v2.timeline.instructions
@@ -1615,6 +1624,11 @@ class TwitterBot:
                     instructions = result.timeline.timeline.instructions
                 else:
                     return
+            
+            if instructions is None:
+                print("something is wrong")
+                print(response)
+                return
 
             add_instructions = [x for x in instructions if x.type == "TimelineAddEntries"]
             if len(add_instructions) != 0:
