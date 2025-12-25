@@ -2517,32 +2517,28 @@ class TwitterBot:
             #if the tweet has been deleted, response.data.tweetResult.result would be None and _tweet_from_result would return None
             return TwitterBot._tweet_from_result(response.data.tweetResult.result)
 
-    #@staticmethod
+    @staticmethod
     @cache
-    def user_by_screen_name(self, screen_name):
-    #def user_by_screen_name(screen_name):
+    def user_by_screen_name(screen_name):
+    #def user_by_screen_name(self, screen_name):
         """
         Returns the account status and the user profile, given user's screen_name.
         """
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
-        url = "https://x.com/i/api/graphql/32pL5BWe9WKeSK1MoPvFQQ/UserByScreenName"
+        url = "https://api.x.com/graphql/-oaLodhGbbnzJBACb1kk2Q/UserByScreenName"
+
+        tmp_headers["x-client-transaction-id"] = get_transaction_id(url=url, method="GET")
 
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
         form["variables"] = {"screen_name": screen_name}
 
-        headers = self._json_headers()
-
-        #note: the x-client-transaction-id, if valid, could apply to any guest ids
-        #a valid x-client-transaction-id could come from either guest or logged in user
-        #x-client-transaction-id is url specific
-        #tmp_headers["x-client-transaction-id"] = "rAPNNqMotZR4d5t8zE2bn+rRHLRBtDhd/oX0piKG3Vm2zVmrHx/IG7Zp3OmeuXjmtjvX6K8tF3MLzu2/Nt+f8Ovrknrrrw"
-        #print(tmp_headers)
+        #headers = self._json_headers()
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
-        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        r = self._session.get(url, headers=headers, params=encoded_params)
+        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = self._session.get(url, headers=headers, params=encoded_params)
 
         if r.status_code == 200:
             response = r.json()
@@ -2576,8 +2572,9 @@ class TwitterBot:
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
-            #print(response)
             return TwitterBot._status_and_user_from_result(response.data.user.result)
+        else:
+            logger.debug(r.text)
 
     #@staticmethod
     def status_by_screen_name(self, screen_name):
