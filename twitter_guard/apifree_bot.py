@@ -862,10 +862,10 @@ class TwitterBot:
     }
 
     default_headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36",
         "Accept": "*/*",
         "Accept-Language": "en-US,en;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5,ja;q=0.4,es;q=0.3",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         #"Host": "api.twitter.com",
@@ -1553,15 +1553,18 @@ class TwitterBot:
                             if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
                                 yield from TwitterBot._yield_tweet_from_result(result)
                         elif result.__typename == "TweetWithVisibilityResults":
-                            yield from TwitterBot._yield_tweet_from_result(result.tweet)
+                            if user_id is None or int(result.tweet.core.user_results.result.rest_id) == user_id:
+                                yield from TwitterBot._yield_tweet_from_result(result.tweet)
             elif content.entryType == "TimelineTimelineItem":
                 itemContent = content.itemContent
                 if itemContent.__typename == "TimelineTweet":
                     result = itemContent.tweet_results.result  # could be None
                     if result.__typename == "Tweet":
-                        yield from TwitterBot._yield_tweet_from_result(result)
+                        if user_id is None or int(result.core.user_results.result.rest_id) == user_id:
+                            yield from TwitterBot._yield_tweet_from_result(result)
                     elif result.__typename == "TweetWithVisibilityResults":
-                        yield from TwitterBot._yield_tweet_from_result(result.tweet)
+                        if user_id is None or int(result.tweet.core.user_results.result.rest_id) == user_id:
+                            yield from TwitterBot._yield_tweet_from_result(result.tweet)
                 elif itemContent.__typename == "TimelineTwitterList":
                     twitter_list = itemContent.list
                     yield TwitterBot._list_from_list(twitter_list)
@@ -2148,11 +2151,11 @@ class TwitterBot:
                 "count": batch_count,
                 "product": "Latest",
                 "querySource": "typed_query",
+                "withGrokTranslatedBio":False
             },
             "features": TwitterBot.standard_graphql_features,
         }
 
-        form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
         headers = self._json_headers()
