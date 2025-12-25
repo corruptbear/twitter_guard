@@ -51,7 +51,14 @@ class CustomSession(requests.Session):
 
     def request(self, *args, **kwargs):
         r = super(CustomSession, self).request(*args, **kwargs)
-        logger.debug(f"DEBUG: {r.status_code} {r.text} {r.url}")
+        sent_headers = r.request.headers
+        logger.debug(
+                "DEBUG %s %s\nURL: %s\nSent-Headers: %s",
+                r.status_code,
+                r.reason,
+                r.url,
+                sent_headers,
+            )
         return r
 
     def get(self, *args, **kwargs):

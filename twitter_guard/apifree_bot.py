@@ -742,6 +742,7 @@ class TwitterBot:
     standard_graphql_features = {
         "profile_label_improvements_pcf_label_in_post_enabled": True,
         "rweb_tipjar_consumption_enabled": True,
+        "rweb_video_screen_enabled": False,
         "responsive_web_graphql_exclude_directive_enabled": True,
         "verified_phone_label_enabled": False,
         "creator_subscriptions_tweet_preview_api_enabled": True,
@@ -752,6 +753,10 @@ class TwitterBot:
         "c9s_tweet_anatomy_moderator_badge_enabled": True,
         "responsive_web_grok_analyze_button_fetch_trends_enabled": False,
         "responsive_web_grok_analyze_post_followups_enabled": True,
+        "responsive_web_grok_analysis_button_from_backend": True,
+        "responsive_web_grok_community_note_auto_translation_is_enabled": False,
+        "responsive_web_grok_imagine_annotation_enabled": False,
+        "responsive_web_grok_show_grok_translated_post": True,
         "responsive_web_jetfuel_frame": False,
         "responsive_web_grok_share_attachment_enabled": True,
         "responsive_web_profile_redirect_enabled":False,
@@ -1571,14 +1576,15 @@ class TwitterBot:
     @staticmethod
     def _navigate_graphql_entries(session_type, url, form, session=None, headers=None):
         while True:
-            encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+            headers["x-client-transaction-id"] = get_transaction_id(url=url, method="GET", force_update=True)
+            #encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
+            params = {k: json.dumps(form[k], separators=(",", ":")) for k in form}
             # generate session and header for guest mode
             if session_type != SessionType.Authenticated:
                 session, headers = TwitterBot.tmp_session_headers()
-            r = session.get(url, headers=headers, params=encoded_params)
+            #r = session.get(url, headers=headers, params=encoded_params)
+            r = session.get(url, headers=headers, params=params)
             if r.status_code != 200:
-                logger.debug(f"{r.request.url}")
-                logger.debug(f"{headers}")
                 break
 
             response = r.json()
@@ -2130,11 +2136,11 @@ class TwitterBot:
 
     # @staticmethod
     # def search_timeline_graphql(query):
-    def search_timeline_graphql(self, query, batch_count=100):
+    def search_timeline_graphql(self, query, batch_count=50):
         # tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
         logger.info("search (graphql, logged in)")
 
-        url = "https://x.com/i/api/graphql/KI9jCXUx3Ymt-hDKLOZb9Q/SearchTimeline"
+        url = "https://x.com/i/api/graphql/M1jEez78PEfVfbQLvlWMvQ/SearchTimeline"
 
         form = {
             "variables": {
@@ -2149,8 +2155,10 @@ class TwitterBot:
         form["features"]["blue_business_profile_image_shape_enabled"] = True
         form["features"]["longform_notetweets_rich_text_read_enabled"] = True
 
+        headers = self._json_headers()
+
         # for entries in TwitterBot._navigate_graphql_entries(SessionType.Guest, url, form):
-        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=self._json_headers()):
+        for entries in self._navigate_graphql_entries(SessionType.Authenticated, url, form, session=self._session, headers=headers):
             yield from TwitterBot._text_from_entries(entries)
 
     # TODO: not finished
