@@ -47,7 +47,8 @@ logger = logging.getLogger(__name__)
 
 import base64,secrets
 
-def get_transaction_id(url=None, method=None):
+@cache
+def _get_transaction_id_cached(url=None, method=None):
     # INITIALIZE SESSION
     session = requests.Session()
     session.headers = generate_headers()
@@ -59,25 +60,31 @@ def get_transaction_id(url=None, method=None):
 
     # for x.com no migration is required, just simply do
     home_page = session.get(url="https://x.com")
-    home_page_response = bs4.BeautifulSoup(home_page.content, 'html.parser')
-
+    home_page_response = bs4.BeautifulSoup(home_page.content, "html.parser")
 
     # GET ondemand.s FILE RESPONSE
     ondemand_file_url = get_ondemand_file_url(response=home_page_response)
     ondemand_file = session.get(url=ondemand_file_url)
 
-    ondemand_file_response = bs4.BeautifulSoup(ondemand_file.content, 'html.parser')
-    # Getting "Couldn't get KEY_BYTE indices" error? Try passing the original response or the response text
-    # both should work
-    # ondemand_file_response = ondemand_file
+    # Many implementations expect the ondemand response as text
     ondemand_file_response = ondemand_file.text
 
     path = urlparse(url=url).path
 
-    ct = ClientTransaction(home_page_response=home_page_response, ondemand_file_response=ondemand_file_response)
-    transaction_id = ct.generate_transaction_id(method=method, path=path)
+    ct = ClientTransaction(
+        home_page_response=home_page_response,
+        ondemand_file_response=ondemand_file_response,
+    )
+    return ct.generate_transaction_id(method=method, path=path)
 
-    return transaction_id
+
+def get_transaction_id(url=None, method=None, force_update=False):
+    """
+    Cached transaction id. Set force_update=True to clear cache and recompute.
+    """
+    if force_update:
+        _get_transaction_id_cached.cache_clear()
+    return _get_transaction_id_cached(url, method)
 
 def gen_rand_transaction_id():
     """
