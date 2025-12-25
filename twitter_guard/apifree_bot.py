@@ -3,11 +3,15 @@ import sys
 import traceback
 import warnings
 
+import bs4
 import requests
 
-from urllib.parse import urlencode, quote, unquote
+from urllib.parse import urlparse,urlencode, quote, unquote
 from urllib.request import urlopen, Request
 import http.cookiejar
+
+from x_client_transaction import ClientTransaction
+from x_client_transaction.utils import generate_headers, handle_x_migration, get_ondemand_file_url
 
 from dataclasses import dataclass, field, fields, asdict as dtc_asdict
 from functools import cache
@@ -42,6 +46,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 import base64,secrets
+
+def get_transaction_id(url=None, method=None):
+    # INITIALIZE SESSION
+    session = requests.Session()
+    session.headers = generate_headers()
+
+    # GET HOME PAGE RESPONSE
+    # required only when hitting twitter.com but not x.com
+    # returns bs4.BeautifulSoup object
+    home_page_response = handle_x_migration(session=session)
+
+    # for x.com no migration is required, just simply do
+    home_page = session.get(url="https://x.com")
+    home_page_response = bs4.BeautifulSoup(home_page.content, 'html.parser')
+
+
+    # GET ondemand.s FILE RESPONSE
+    ondemand_file_url = get_ondemand_file_url(response=home_page_response)
+    ondemand_file = session.get(url=ondemand_file_url)
+
+    ondemand_file_response = bs4.BeautifulSoup(ondemand_file.content, 'html.parser')
+    # Getting "Couldn't get KEY_BYTE indices" error? Try passing the original response or the response text
+    # both should work
+    # ondemand_file_response = ondemand_file
+    ondemand_file_response = ondemand_file.text
+
+    path = urlparse(url=url).path
+
+    ct = ClientTransaction(home_page_response=home_page_response, ondemand_file_response=ondemand_file_response)
+    transaction_id = ct.generate_transaction_id(method=method, path=path)
+
+    return transaction_id
+
 def gen_rand_transaction_id():
     """
     Generates random x-client-transaction-id
@@ -710,6 +747,7 @@ class TwitterBot:
         "responsive_web_grok_analyze_post_followups_enabled": True,
         "responsive_web_jetfuel_frame": False,
         "responsive_web_grok_share_attachment_enabled": True,
+        "responsive_web_profile_redirect_enabled":False,
         "articles_preview_enabled": True,
         "responsive_web_edit_tweet_api_enabled": True,
         "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
@@ -1314,23 +1352,29 @@ class TwitterBot:
 
         user = result.legacy
 
+        screen_name = result.core.screen_name
+        created_at = result.core.created_at
+        display_name = result.core.name
+        protected=result.privacy.protected
+        blocking=result.relationship_perspectives.blocking
+
         if result.__typename == "User":
             p = TwitterUserProfile(
                 int(result.rest_id),
-                user.screen_name,
-                created_at=sns_timestamp_from_tweet_timestamp(user.created_at),
+                screen_name,
+                created_at=sns_timestamp_from_tweet_timestamp(created_at),
                 following_count=user.friends_count,
                 followers_count=user.followers_count,
                 tweet_count=user.statuses_count,
                 media_count=user.media_count,
                 favourites_count=user.favourites_count,
-                display_name=user.name,
-                blocked=user.blocking,
-                protected=user.protected,
+                display_name=display_name,
+                blocked=blocking,
+                protected=protected,
             )
             if result.legacy.profile_interstitial_type == "fake_account":
                 return "fake_account", p
-            if result.legacy.protected:
+            if protected:
                 return "protected", p
             return "normal", p
 
@@ -2507,16 +2551,18 @@ class TwitterBot:
         else:
             logger.debug(r.text)
 
-    #@staticmethod
+    @staticmethod
     @cache
-    def user_by_id(self, user_id):
-    #def user_by_id(user_id):
+    def user_by_id(user_id):
+    #def user_by_id(self, user_id):
         """
         Returns the account status and the user profile, given user's id.
         """
-        #tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
+        tmp_session, tmp_headers = TwitterBot.tmp_session_headers()
 
-        url = "https://x.com/i/api/graphql/5vdJ5sWkbSRDiiNZvwc2Yg/UserByRestId"
+        url = "https://api.x.com/graphql/Bbaot8ySMtJD7K2t01gW7A/UserByRestId"
+
+        tmp_headers["x-client-transaction-id"] = get_transaction_id(url=url, method="GET")
 
         form = copy.deepcopy(TwitterBot.tweet_replies_form)
 
@@ -2524,12 +2570,13 @@ class TwitterBot:
 
         encoded_params = urlencode({k: json.dumps(form[k], separators=(",", ":")) for k in form})
 
-        #r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
-        r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
+        r = tmp_session.get(url, headers=tmp_headers, params=encoded_params)
+        #r = self._session.get(url, headers=self._json_headers(), params=encoded_params)
+
         if r.status_code == 200:
             response = r.json()
             response = TwitterJSON(response)
-            print(response)
+            #print(response)
             return TwitterBot._status_and_user_from_result(response.data.user.result)
 
     #@staticmethod
