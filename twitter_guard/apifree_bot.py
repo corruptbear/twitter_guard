@@ -754,6 +754,7 @@ class TwitterBot:
         "responsive_web_grok_analyze_button_fetch_trends_enabled": False,
         "responsive_web_grok_analyze_post_followups_enabled": True,
         "responsive_web_grok_analysis_button_from_backend": True,
+        "responsive_web_grok_annotations_enabled": False,
         "responsive_web_grok_community_note_auto_translation_is_enabled": False,
         "responsive_web_grok_imagine_annotation_enabled": False,
         "responsive_web_grok_show_grok_translated_post": True,
@@ -827,11 +828,7 @@ class TwitterBot:
             "userId": None,
             "count": 100,
             "includePromotedContent": False,
-            "withSuperFollowsUserFields": True,
-            "withDownvotePerspective": False,
-            "withReactionsMetadata": False,
-            "withReactionsPerspective": False,
-            "withSuperFollowsTweetFields": True,
+            "withGrokTranslatedBio":False
         },
         "features": standard_graphql_features,
     }
@@ -1594,6 +1591,7 @@ class TwitterBot:
                 session, headers = TwitterBot.tmp_session_headers()
             #r = session.get(url, headers=headers, params=encoded_params)
             r = session.get(url, headers=headers, params=params)
+
             if r.status_code != 200:
                 break
 
@@ -1706,9 +1704,9 @@ class TwitterBot:
         """
         user_id = self.numerical_id(user_id)
 
-        headers = self._json_headers()
+        url = "https://x.com/i/api/graphql/nPxku0BhPf8ahHuhq_KbkQ/Following"
 
-        url = "https://x.com/i/api/graphql/wNBqXYS8bGs6_lwS5sADfQ/Following"
+        headers = self._json_headers()
 
         form = copy.deepcopy(TwitterBot.following_followers_form)
 
@@ -1735,7 +1733,7 @@ class TwitterBot:
 
         headers = self._json_headers()
 
-        url = "https://x.com/i/api/graphql/QC7Gv2qgcPD6Nkz2Fy0mBQ/Followers"
+        url = "https://x.com/i/api/graphql/DI-rj6MR3FLUSterZy9WNg/Followers"
 
         form = copy.deepcopy(TwitterBot.following_followers_form)
         form["variables"]["count"] = batch_count

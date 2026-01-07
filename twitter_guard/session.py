@@ -59,6 +59,8 @@ class CustomSession(requests.Session):
                 r.url,
                 sent_headers,
             )
+        if r.status_code!=200:
+            logger.debug(f"{r.text}")
         return r
 
     def get(self, *args, **kwargs):
